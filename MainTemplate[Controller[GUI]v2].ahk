@@ -1,4 +1,4 @@
-﻿﻿#Requires AutoHotkey >=2.0 <3.0
+﻿#Requires AutoHotkey >=2.0 <3.0
 #Warn All
 
 ; =========================================================
