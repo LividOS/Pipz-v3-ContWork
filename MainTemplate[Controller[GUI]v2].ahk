@@ -1015,7 +1015,6 @@ RestoreDefaults(*) {
     defaultRandSleepChance  := FEATURE_META["RandSleep"]["chanceDefault"]
 
     ; --- Persist defaults to settings file ---
-    SaveSetting("General", "GameTitle", defaultGameTitle)
     SaveSetting("General", "ShowOverlay", defaultShowOverlay)
 
     SaveSetting("AntiBan", "OvershootEnabled", defaultOvershootEnabled)
@@ -1049,7 +1048,7 @@ RestoreDefaults(*) {
 
     ; --- Update General tab controls ---
     try chkShowOverlay.Value := defaultShowOverlay
-    try editGameTitle.Value := defaultGameTitle
+    try editGameTitle.Value := ""
 
     ; --- Update AntiBan controls ---
     try chkOvershoot.Value := defaultOvershootEnabled
