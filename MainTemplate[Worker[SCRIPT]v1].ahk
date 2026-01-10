@@ -3,8 +3,8 @@
 
 ; =========================================================
 ; Pipz MAINTEMPLATE - Worker (AHK v1)
-; Version: 1.0.2
-; Last change: Added AntiBan RandSleep support (controller-driven sleep randomization)
+; Version: 1.0.3
+; Last change: GameTitle default now unset (migrates legacy "C:" to blank)
 ; =========================================================
 
 ; =========================
@@ -129,7 +129,12 @@ AB_Sleep(baseMs) {
 ; =========================
 
 ; General (mirrored; v1 can use later if needed)
-g_GameTitle := LoadSetting("General", "GameTitle", "C:")
+g_GameTitle := Trim(LoadSetting("General", "GameTitle", ""))
+
+; Migrate legacy default "C:" to unset
+if (g_GameTitle = "C:")
+    g_GameTitle := ""
+	
 g_ShowOverlay := LoadSetting("General", "ShowOverlay", 1)
 g_ShowOverlay := (g_ShowOverlay != 0) ? 1 : 0
 
@@ -339,7 +344,12 @@ RefreshSettings:
     g_SettingsLastWrite := curWrite
 
     ; General
-    g_GameTitle := LoadSetting("General", "GameTitle", "C:")
+    g_GameTitle := Trim(LoadSetting("General", "GameTitle", ""))
+
+	; Migrate legacy default "C:" to unset
+	if (g_GameTitle = "C:")
+		g_GameTitle := ""
+
     g_ShowOverlay := LoadSetting("General", "ShowOverlay", 1)
     g_ShowOverlay := (g_ShowOverlay != 0) ? 1 : 0
 	
