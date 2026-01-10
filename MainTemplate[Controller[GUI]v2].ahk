@@ -1,4 +1,4 @@
-﻿#Requires AutoHotkey >=2.0 <3.0
+﻿﻿#Requires AutoHotkey >=2.0 <3.0
 #Warn All
 
 ; =========================================================
@@ -423,7 +423,7 @@ SetTimer(UpdateOverlayAndPosition, 10)
 StartScript(*) {
     global isRunning, startTick, ctrlGui, v1PID, runState
 
-    v1ScriptName := "MainTemplate[Worker[SCRIPT]v1].ahk"
+    v1ScriptName := "MainTemplate[Script].ahk"
     v1ScriptPath := A_ScriptDir "\" v1ScriptName
 
     if !FileExist(v1ScriptPath) {
@@ -1015,6 +1015,7 @@ RestoreDefaults(*) {
     defaultRandSleepChance  := FEATURE_META["RandSleep"]["chanceDefault"]
 
     ; --- Persist defaults to settings file ---
+    SaveSetting("General", "GameTitle", defaultGameTitle)
     SaveSetting("General", "ShowOverlay", defaultShowOverlay)
 
     SaveSetting("AntiBan", "OvershootEnabled", defaultOvershootEnabled)
@@ -1048,7 +1049,7 @@ RestoreDefaults(*) {
 
     ; --- Update General tab controls ---
     try chkShowOverlay.Value := defaultShowOverlay
-    try editGameTitle.Value := ""
+    try editGameTitle.Value := defaultGameTitle
 
     ; --- Update AntiBan controls ---
     try chkOvershoot.Value := defaultOvershootEnabled
