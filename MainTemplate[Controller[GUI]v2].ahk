@@ -3,8 +3,8 @@
 
 ; =========================================================
 ; Pipz MAINTEMPLATE - Controller (AHK v2)
-; Version: 1.0.15
-; Last change: Fixed InitSettings() brace + moved InitSettings() after FEATURE_META
+; Version: 1.0.16
+; Last change: RandSleep AntiBan feature now fully implemented in worker
 ; =========================================================
 
 ; =========================

@@ -3,8 +3,8 @@
 
 ; =========================================================
 ; Pipz MAINTEMPLATE - Worker (AHK v1)
-; Version: 1.0.1
-; Last change: Added persistent worker loop for lifecycle testing
+; Version: 1.0.2
+; Last change: Added AntiBan RandSleep support (controller-driven sleep randomization)
 ; =========================================================
 
 ; =========================
