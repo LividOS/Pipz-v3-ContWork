@@ -1036,7 +1036,7 @@ RestoreDefaults(*) {
         overlayGui.Hide()
     }
 
-        ; --- Brief UI confirmation (overrides the normal status temporarily) ---
+    ; --- Brief UI confirmation (overrides the normal status temporarily) ---
     inlineOverride := true
     SetInlineStatus("All settings set to Default.", "Gray")
 
