@@ -103,6 +103,28 @@ LoadSetting(section, key, default) {
 }
 
 ; =========================
+; AntiBan Sleep Wrapper (AHK v1)
+; Use this instead of raw Sleep to apply controller-driven antiban timing.
+; =========================
+AB_Sleep(baseMs) {
+    global g_RandSleepEnabled, g_RandSleepMax, g_RandSleepChance
+
+    ; Apply randomized extra delay (occasionally)
+    if (g_RandSleepEnabled && g_RandSleepMax > 0 && g_RandSleepChance > 0) {
+        Random, roll, 1, 100
+        if (roll <= g_RandSleepChance) {
+            Random, extra, 1, %g_RandSleepMax%
+            Sleep, %extra%
+        }
+    }
+
+    ; Always do the intended sleep
+    if (baseMs < 0)
+        baseMs := 0
+    Sleep, %baseMs%
+}
+
+; =========================
 ; Mirrored settings from v2 tool
 ; =========================
 
@@ -111,7 +133,7 @@ g_GameTitle := LoadSetting("General", "GameTitle", "C:")
 g_ShowOverlay := LoadSetting("General", "ShowOverlay", 1)
 g_ShowOverlay := (g_ShowOverlay != 0) ? 1 : 0
 
-; AntiBan
+; AntiBan - Overshoot (mirrored)
 g_OvershootEnabled := LoadSetting("AntiBan", "OvershootEnabled", 1)
 g_OvershootEnabled := (g_OvershootEnabled != 0) ? 1 : 0
 
@@ -122,6 +144,26 @@ if (g_OvershootPercent < 0)
     g_OvershootPercent := 0
 if (g_OvershootPercent > 100)
     g_OvershootPercent := 100
+	
+; AntiBan - RandSleep (mirrored)
+g_RandSleepEnabled := LoadSetting("AntiBan", "RandSleepEnabled", 1)
+g_RandSleepEnabled := (g_RandSleepEnabled != 0) ? 1 : 0
+
+g_RandSleepMax := LoadSetting("AntiBan", "RandSleepMax", 60)
+if !RegExMatch(g_RandSleepMax, "^\d+$")
+    g_RandSleepMax := 60
+if (g_RandSleepMax < 0)
+    g_RandSleepMax := 0
+if (g_RandSleepMax > 5000)
+    g_RandSleepMax := 5000  ; safety clamp
+
+g_RandSleepChance := LoadSetting("AntiBan", "RandSleepChance", 25)
+if !RegExMatch(g_RandSleepChance, "^\d+(\.\d+)?$")
+    g_RandSleepChance := 25
+if (g_RandSleepChance < 0)
+    g_RandSleepChance := 0
+if (g_RandSleepChance > 100)
+    g_RandSleepChance := 100
 	
 ; =========================
 ; Cache settings file modified time
@@ -300,8 +342,28 @@ RefreshSettings:
     g_GameTitle := LoadSetting("General", "GameTitle", "C:")
     g_ShowOverlay := LoadSetting("General", "ShowOverlay", 1)
     g_ShowOverlay := (g_ShowOverlay != 0) ? 1 : 0
+	
+	; --- AntiBan - RandSleep (refresh) ---
+	g_RandSleepEnabled := LoadSetting("AntiBan", "RandSleepEnabled", g_RandSleepEnabled)
+	g_RandSleepEnabled := (g_RandSleepEnabled != 0) ? 1 : 0
 
-    ; AntiBan
+	g_RandSleepMax := LoadSetting("AntiBan", "RandSleepMax", g_RandSleepMax)
+	if !RegExMatch(g_RandSleepMax, "^\d+$")
+		g_RandSleepMax := 60
+	if (g_RandSleepMax < 0)
+		g_RandSleepMax := 0
+	if (g_RandSleepMax > 5000)
+		g_RandSleepMax := 5000
+
+	g_RandSleepChance := LoadSetting("AntiBan", "RandSleepChance", g_RandSleepChance)
+	if !RegExMatch(g_RandSleepChance, "^\d+(\.\d+)?$")
+		g_RandSleepChance := 25
+	if (g_RandSleepChance < 0)
+		g_RandSleepChance := 0
+	if (g_RandSleepChance > 100)
+		g_RandSleepChance := 100
+
+    ; AntiBan - Overshoot (refresh)
     g_OvershootEnabled := LoadSetting("AntiBan", "OvershootEnabled", 1)
     g_OvershootEnabled := (g_OvershootEnabled != 0) ? 1 : 0
 
