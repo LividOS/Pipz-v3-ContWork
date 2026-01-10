@@ -423,7 +423,7 @@ SetTimer(UpdateOverlayAndPosition, 10)
 StartScript(*) {
     global isRunning, startTick, ctrlGui, v1PID, runState
 
-    v1ScriptName := "MainTemplate[Script].ahk"
+    v1ScriptName := "MainTemplate[Worker[SCRIPT]v1].ahk"
     v1ScriptPath := A_ScriptDir "\" v1ScriptName
 
     if !FileExist(v1ScriptPath) {
