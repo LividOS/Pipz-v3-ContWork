@@ -1,4 +1,4 @@
-# Pipz-v2-Controller
+# Pipz-v3-ContWork
 
 ## Versioning
 - Controller: AHK v2
@@ -7,3 +7,4 @@
 
 ## Current Version
 - Controller: v1.0.15
+- Worker: v1.0.1
