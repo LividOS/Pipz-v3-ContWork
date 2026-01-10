@@ -3,8 +3,8 @@
 
 ; =========================================================
 ; Pipz MAINTEMPLATE - Controller (AHK v2)
-; Version: 1.0.16
-; Last change: RandSleep AntiBan feature now fully implemented in worker
+; Version: 1.0.17
+; Last change: GameTitle now uses cue placeholder instead of hardcoded default
 ; =========================================================
 
 ; =========================
@@ -114,7 +114,11 @@ isRunning := false
 runState := "stopped"   ; "running" | "paused" | "stopped"
 startTick := 0
 elapsedMs := 0
-gameTitle := LoadSetting("General", "GameTitle", "C:")           ; Window Title to snap overlay to
+gameTitle := Trim(LoadSetting("General", "GameTitle", ""))      ; Window Title to snap overlay to
+
+; Migrate old default "C:" to unset
+if (gameTitle = "C:")
+    gameTitle := ""
 overlayOffsetY := 20
 overlayPaddingX := 12
 overlayPaddingY := 12
@@ -182,6 +186,10 @@ ctrlGui.AddText("x20 y120 w" (GUI_W-40) " Center", "Game Window Title")
 ctrlGui.SetFont("s10")
 editGameTitle := ctrlGui.AddEdit("x60 y150 w" (GUI_W-100), gameTitle)
 editGameTitle.OnEvent("Change", UpdateGameTitle)
+
+; Grey placeholder when unset (no actual text placed in the field)
+if (Trim(editGameTitle.Value) = "")
+    SetCueBanner(editGameTitle.Hwnd, "RuneLite - CHARACTERNAME", true)
 
 ; Bottom buttons
 BTN_Y := 255
@@ -682,6 +690,8 @@ UpdateGameTitle(*) {
 
         ; ✅ save
         SaveSetting("General", "GameTitle", gameTitle)
+		
+		SetCueBanner(editGameTitle.Hwnd, "", true)
 
         UpdateOverlayAndPosition()
     }
@@ -689,6 +699,17 @@ UpdateGameTitle(*) {
 
 Clamp(val, min, max) {
     return val < min ? min : (val > max ? max : val)
+}
+
+SetCueBanner(hwnd, text, showWhenFocused := true) {
+    ; EM_SETCUEBANNER = 0x1501
+    ; wParam: showWhenFocused (1/0)
+    ; lParam: pointer to unicode string
+    DllCall("SendMessageW"
+        , "ptr", hwnd
+        , "uint", 0x1501
+        , "ptr", showWhenFocused ? 1 : 0
+        , "ptr", StrPtr(text))
 }
 
 LoadSetting(section, key, default := "") {
@@ -779,7 +800,16 @@ UpdateRandSleep(*) {
 
 InitSettings() {
     SaveSetting("General", "ShowOverlay", LoadSetting("General","ShowOverlay",1))
-    SaveSetting("General", "GameTitle", LoadSetting("General","GameTitle","C:"))
+	; Do NOT force-write GameTitle default.
+	; Keep it unset so the cue banner can show until user sets it.
+	gt := Trim(LoadSetting("General", "GameTitle", ""))
+
+	; migrate old default "C:" to unset
+	if (gt = "C:") {
+		try IniDelete(settingsFile, "General", "GameTitle")
+	} else if (gt != "") {
+		SaveSetting("General", "GameTitle", gt)
+	}
 	for _, meta in FEATURE_META {
 		sec := meta["section"]
 
@@ -973,7 +1003,7 @@ PromptForAhkV1Exe() {
 RestoreDefaults(*) {
     global
     ; --- Define your defaults ---
-    defaultGameTitle := "C:"
+    defaultGameTitle := ""  ; unset => cue banner placeholder
     defaultShowOverlay := 1
 
     ; --- Anti-Ban defaults from centralized metadata ---
@@ -998,8 +1028,16 @@ RestoreDefaults(*) {
     ; Clear cached AHK v1 exe path so user can re-pick if needed
     SaveSetting("General", "AhkV1Exe", "")
 
-    ; --- Update runtime variables ---
-    gameTitle := defaultGameTitle
+    ; --- Update Runtime variables & General defaults ---
+	gameTitle := defaultGameTitle
+	editGameTitle.Value := ""
+
+	; Remove persisted title so it returns to cue placeholder
+	try IniDelete(settingsFile, "General", "GameTitle")
+
+	; Re-apply cue banner
+	SetCueBanner(editGameTitle.Hwnd, "RuneLite - CHARACTERNAME", true)
+
     showOverlay := (defaultShowOverlay != 0)
 
     overshootEnabled := (defaultOvershootEnabled != 0)
