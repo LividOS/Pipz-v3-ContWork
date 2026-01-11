@@ -3,8 +3,8 @@
 
 ; =========================================================
 ; Pipz MAINTEMPLATE - Controller (AHK v2)
-; Version: 1.0.19
-; Last change: Updated MicroDelay tuning label text (removed residual RandSleep UI naming)
+; Version: 1.0.20
+; Last change: Internal cleanup - renamed RandSleep identifiers to MicroDelay (kept legacy migration)
 ; =========================================================
 
 ; =========================
@@ -87,7 +87,7 @@ FEATURE_META := Map(
         "featureTip", "Chance for mouse to slightly miss target destination and correct.",
         "tuningTip", "Base overshoot chance (%). Higher = more likely to overshoot."
     ),
-    "RandSleep", Map(
+    "MicroDelay", Map(
 		"section", "AntiBan",
 
 		; NEW KEYS (MicroDelay)
@@ -266,10 +266,9 @@ gbTuning   := ctrlGui.AddGroupBox("x" panelX " y" panelY " w" panelW " h" panelH
 overshootEnabled := (LoadSetting("AntiBan", "OvershootEnabled", 1) != 0)
 overshootValue   := LoadSetting("AntiBan", "Overshoot", 5) + 0
 
-randSleepEnabled := (LoadSetting("AntiBan", "RandSleepEnabled", 1) != 0)
-randSleepMax     := LoadSetting("AntiBan", "RandSleepMax", 60) + 0
-randSleepChance  := LoadSetting("AntiBan", "RandSleepChance", 25) + 0
-
+microDelayEnabled := (LoadSetting("AntiBan", "MicroDelayEnabled", 1) != 0)
+microDelayMax     := LoadSetting("AntiBan", "MicroDelayMax", 60) + 0
+microDelayChance  := LoadSetting("AntiBan", "MicroDelayChance", 25) + 0
 
 ; =========================
 ; FEATURES PANEL (checkboxes)
@@ -284,10 +283,9 @@ AddCtrlToolTip(ctrlGui, chkOvershoot, FEATURE_META["Overshoot"]["featureTip"])
 chkOvershoot.OnEvent("Click", OnOvershootToggle)
 
 fy += 30
-chkRandSleep := ctrlGui.AddCheckBox("x" fx " y" fy " w260 " (randSleepEnabled ? "Checked" : ""), "Randomized Micro Delay")
-AddCtrlToolTip(ctrlGui, chkRandSleep, FEATURE_META["RandSleep"]["featureTip"])
-chkRandSleep.OnEvent("Click", OnRandSleepToggle)
-
+chkMicroDelay := ctrlGui.AddCheckBox("x" fx " y" fy " w260 " (microDelayEnabled ? "Checked" : ""), "Randomized Micro Delay")
+AddCtrlToolTip(ctrlGui, chkMicroDelay, FEATURE_META["MicroDelay"]["featureTip"])
+chkMicroDelay.OnEvent("Click", OnMicroDelayToggle)
 
 ; =========================
 ; TUNING PANEL (spinboxes)
@@ -312,33 +310,33 @@ editOvershoot.OnEvent("Change", UpdateOvershoot)
 
 ty += 35
 
-; Randomized Micro Delay Duration Tuning
-lblRandSleepDur := ctrlGui.AddText("x" tx " y" ty+2 " w" labelW, "Micro Delay Max (ms)")
-editRandSleep := ctrlGui.AddEdit("x" editX " y" (ty-2) " w55", randSleepMax)
-upDownRandSleep := ctrlGui.AddUpDown("x" upX " y" (ty-2) " w20 Range10-5000")
-upDownRandSleep.Value := randSleepMax
-upDownRandSleep.OnEvent("Change", (*) => (editRandSleep.Text := upDownRandSleep.Value, UpdateRandSleep()))
-AddCtrlToolTip(ctrlGui, lblRandSleepDur,  FEATURE_META["RandSleep"]["durationTip"])
-AddCtrlToolTip(ctrlGui, editRandSleep,    FEATURE_META["RandSleep"]["durationTip"])
-AddCtrlToolTip(ctrlGui, upDownRandSleep,  FEATURE_META["RandSleep"]["durationTip"])
-editRandSleep.OnEvent("Change", UpdateRandSleep)
+; Randomized Micro Delay Max tuning
+lblMicroDelayMax := ctrlGui.AddText("x" tx " y" ty+2 " w" labelW, "Micro Delay Max (ms)")
+editMicroDelayMax := ctrlGui.AddEdit("x" editX " y" (ty-2) " w55", microDelayMax)
+upDownMicroDelayMax := ctrlGui.AddUpDown("x" upX " y" (ty-2) " w20 Range10-5000")
+upDownMicroDelayMax.Value := microDelayMax
+upDownMicroDelayMax.OnEvent("Change", (*) => (editMicroDelayMax.Text := upDownMicroDelayMax.Value, UpdateMicroDelayMax()))
+AddCtrlToolTip(ctrlGui, lblMicroDelayMax,  FEATURE_META["MicroDelay"]["durationTip"])
+AddCtrlToolTip(ctrlGui, editMicroDelayMax,    FEATURE_META["MicroDelay"]["durationTip"])
+AddCtrlToolTip(ctrlGui, upDownMicroDelayMax,  FEATURE_META["MicroDelay"]["durationTip"])
+editMicroDelayMax.OnEvent("Change", UpdateMicroDelayMax)
 
 ty += 35
 
 ; Randomized Micro Delay Chance Tuning
-lblRandSleepChance := ctrlGui.AddText("x" tx " y" ty+2 " w" labelW, "Micro Delay Chance (%)")
-editRandSleepChance := ctrlGui.AddEdit("x" editX " y" (ty-2) " w55", randSleepChance)
-upDownRandSleepChance := ctrlGui.AddUpDown("x" upX " y" (ty-2) " w20 Range0-100")
-upDownRandSleepChance.Value := randSleepChance
-upDownRandSleepChance.OnEvent("Change", (*) => (editRandSleepChance.Text := upDownRandSleepChance.Value, UpdateRandSleepChance()))
-AddCtrlToolTip(ctrlGui, lblRandSleepChance, FEATURE_META["RandSleep"]["chanceTip"])
-AddCtrlToolTip(ctrlGui, editRandSleepChance, FEATURE_META["RandSleep"]["chanceTip"])
-AddCtrlToolTip(ctrlGui, upDownRandSleepChance, FEATURE_META["RandSleep"]["chanceTip"])
-editRandSleepChance.OnEvent("Change", UpdateRandSleepChance)
+lblmicroDelayChance := ctrlGui.AddText("x" tx " y" ty+2 " w" labelW, "Micro Delay Chance (%)")
+editmicroDelayChance := ctrlGui.AddEdit("x" editX " y" (ty-2) " w55", microDelayChance)
+upDownmicroDelayChance := ctrlGui.AddUpDown("x" upX " y" (ty-2) " w20 Range0-100")
+upDownmicroDelayChance.Value := microDelayChance
+upDownmicroDelayChance.OnEvent("Change", (*) => (editmicroDelayChance.Text := upDownmicroDelayChance.Value, UpdatemicroDelayChance()))
+AddCtrlToolTip(ctrlGui, lblmicroDelayChance, FEATURE_META["MicroDelay"]["chanceTip"])
+AddCtrlToolTip(ctrlGui, editmicroDelayChance, FEATURE_META["MicroDelay"]["chanceTip"])
+AddCtrlToolTip(ctrlGui, upDownmicroDelayChance, FEATURE_META["MicroDelay"]["chanceTip"])
+editmicroDelayChance.OnEvent("Change", UpdatemicroDelayChance)
 
 ; Apply enabled/disabled states once
 SetOvershootControlsEnabled(overshootEnabled)
-SetRandSleepControlsEnabled(randSleepEnabled)
+SetMicroDelayControlsEnabled(microDelayEnabled)
 
 ; Default sub-tab on open
 SetAntiBanSubTab("features")
@@ -764,43 +762,43 @@ UpdateOvershoot(*) {
     SaveSetting("AntiBan", "Overshoot", val)
 }
 
-OnRandSleepToggle(*) {
-    global chkRandSleep, randSleepEnabled
-    randSleepEnabled := (chkRandSleep.Value != 0)
+OnMicroDelayToggle(*) {
+    global chkMicroDelay, microDelayEnabled
+    microDelayEnabled := (chkMicroDelay.Value != 0)
 
-    SaveSetting("AntiBan", "RandSleepEnabled", randSleepEnabled ? 1 : 0)
-    SetRandSleepControlsEnabled(randSleepEnabled)
+    SaveSetting("AntiBan", "MicroDelayEnabled", microDelayEnabled ? 1 : 0)
+    SetMicroDelayControlsEnabled(microDelayEnabled)
 }
 
-SetRandSleepControlsEnabled(enabled) {
-    global editRandSleep, upDownRandSleep
-    global editRandSleepChance, upDownRandSleepChance
+SetMicroDelayControlsEnabled(enabled) {
+    global editMicroDelayMax, upDownMicroDelayMax
+    global editmicroDelayChance, upDownmicroDelayChance
 
-    if IsSet(editRandSleep)
-        editRandSleep.Enabled := enabled
-    if IsSet(upDownRandSleep)
-        upDownRandSleep.Enabled := enabled
+    if IsSet(editMicroDelayMax)
+        editMicroDelayMax.Enabled := enabled
+    if IsSet(upDownMicroDelayMax)
+        upDownMicroDelayMax.Enabled := enabled
 
-    if IsSet(editRandSleepChance)
-        editRandSleepChance.Enabled := enabled
-    if IsSet(upDownRandSleepChance)
-        upDownRandSleepChance.Enabled := enabled
+    if IsSet(editmicroDelayChance)
+        editmicroDelayChance.Enabled := enabled
+    if IsSet(upDownmicroDelayChance)
+        upDownmicroDelayChance.Enabled := enabled
 }
 
-UpdateRandSleep(*) {
-    global editRandSleep, upDownRandSleep, randSleepMax
+UpdateMicroDelayMax(*) {
+    global editMicroDelayMax, upDownMicroDelayMax, microDelayMax
 
-    val := editRandSleep.Text
+    val := editMicroDelayMax.Text
     if !RegExMatch(val, "^\d+$")  ; integer-only
         val := 10
 
     val := Clamp(val, 10, 5000)
 
-    randSleepMax := val
-    editRandSleep.Text := val
-    upDownRandSleep.Value := val
+    microDelayMax := val
+    editMicroDelayMax.Text := val
+    upDownMicroDelayMax.Value := val
 
-    SaveSetting("AntiBan", "RandSleepMax", val)
+    SaveSetting("AntiBan", "MicroDelayMax", val)
 }
 
 InitSettings() {
@@ -839,9 +837,9 @@ InitSettings() {
 
 	; If any new key is missing, pull from legacy keys (or defaults) and write new.
 	if (mdEnabled = "" || mdMax = "" || mdChance = "") {
-		oldEnabled := LoadSetting("AntiBan", "RandSleepEnabled", FEATURE_META["RandSleep"]["enabledDefault"])
-		oldMax     := LoadSetting("AntiBan", "RandSleepMax",     FEATURE_META["RandSleep"]["durationDefault"])
-		oldChance  := LoadSetting("AntiBan", "RandSleepChance",  FEATURE_META["RandSleep"]["chanceDefault"])
+		oldEnabled := LoadSetting("AntiBan", "microDelayEnabled", FEATURE_META["MicroDelay"]["enabledDefault"])
+		oldMax     := LoadSetting("AntiBan", "microDelayMax",     FEATURE_META["MicroDelay"]["durationDefault"])
+		oldChance  := LoadSetting("AntiBan", "microDelayChance",  FEATURE_META["MicroDelay"]["chanceDefault"])
 
 		SaveSetting("AntiBan", "MicroDelayEnabled", oldEnabled)
 		SaveSetting("AntiBan", "MicroDelayMax",     oldMax)
@@ -1037,9 +1035,9 @@ RestoreDefaults(*) {
     defaultOvershootEnabled := FEATURE_META["Overshoot"]["enabledDefault"]
     defaultOvershoot        := FEATURE_META["Overshoot"]["valueDefault"]
 
-    defaultRandSleepEnabled := FEATURE_META["RandSleep"]["enabledDefault"]
-    defaultRandSleepMax     := FEATURE_META["RandSleep"]["durationDefault"]
-    defaultRandSleepChance  := FEATURE_META["RandSleep"]["chanceDefault"]
+    defaultMicroDelayEnabled := FEATURE_META["MicroDelay"]["enabledDefault"]
+	defaultMicroDelayMax     := FEATURE_META["MicroDelay"]["durationDefault"]
+	defaultMicroDelayChance  := FEATURE_META["MicroDelay"]["chanceDefault"]
 
     ; --- Persist defaults to settings file ---
     SaveSetting("General", "GameTitle", defaultGameTitle)
@@ -1048,9 +1046,9 @@ RestoreDefaults(*) {
     SaveSetting("AntiBan", "OvershootEnabled", defaultOvershootEnabled)
     SaveSetting("AntiBan", "Overshoot", defaultOvershoot)
 	
-	SaveSetting("AntiBan", "RandSleepEnabled", defaultRandSleepEnabled)
-	SaveSetting("AntiBan", "RandSleepMax", defaultRandSleepMax)
-	SaveSetting("AntiBan", "RandSleepChance", defaultRandSleepChance)
+	SaveSetting("AntiBan", "MicroDelayEnabled", defaultMicroDelayEnabled)
+	SaveSetting("AntiBan", "MicroDelayMax", defaultMicroDelayMax)
+	SaveSetting("AntiBan", "MicroDelayChance", defaultMicroDelayChance)
 
     ; Clear cached AHK v1 exe path so user can re-pick if needed
     SaveSetting("General", "AhkV1Exe", "")
@@ -1070,9 +1068,9 @@ RestoreDefaults(*) {
     overshootEnabled := (defaultOvershootEnabled != 0)
     overshootValue := defaultOvershoot
 	
-	randSleepEnabled := (defaultRandSleepEnabled != 0)
-	randSleepMax := defaultRandSleepMax
-	randSleepChance := defaultRandSleepChance
+	microDelayEnabled := (defaultmicroDelayEnabled != 0)
+	microDelayMax := defaultmicroDelayMax
+	microDelayChance := defaultmicroDelayChance
 
     ; --- Update General tab controls ---
     try chkShowOverlay.Value := defaultShowOverlay
@@ -1084,19 +1082,19 @@ RestoreDefaults(*) {
     try upDown.Value := defaultOvershoot
     try SetOvershootControlsEnabled(overshootEnabled)
 	
-	try chkRandSleep.Value := defaultRandSleepEnabled
-	try editRandSleep.Text := defaultRandSleepMax
-	try upDownRandSleep.Value := defaultRandSleepMax
+	try chkMicroDelay.Value := defaultmicroDelayEnabled
+	try editMicroDelayMax.Text := defaultmicroDelayMax
+	try upDownMicroDelayMax.Value := defaultmicroDelayMax
 
-	try editRandSleepChance.Text := defaultRandSleepChance
-	try upDownRandSleepChance.Value := defaultRandSleepChance
+	try editmicroDelayChance.Text := defaultmicroDelayChance
+	try upDownmicroDelayChance.Value := defaultmicroDelayChance
 
-	try SetRandSleepControlsEnabled(randSleepEnabled)
+	try SetMicroDelayControlsEnabled(microDelayEnabled)
 	
 	; Cleanup legacy RandSleep keys so defaults don’t resurrect old behavior
-	try IniDelete(settingsFile, "AntiBan", "RandSleepEnabled")
-	try IniDelete(settingsFile, "AntiBan", "RandSleepMax")
-	try IniDelete(settingsFile, "AntiBan", "RandSleepChance")
+	try IniDelete(settingsFile, "AntiBan", "microDelayEnabled")
+	try IniDelete(settingsFile, "AntiBan", "microDelayMax")
+	try IniDelete(settingsFile, "AntiBan", "microDelayChance")
 
     ; --- Apply overlay changes immediately ---
     if showOverlay {
@@ -1113,20 +1111,20 @@ RestoreDefaults(*) {
     SetTimer(ClearInlineOverride, -2500)
 }
 
-UpdateRandSleepChance(*) {
-    global editRandSleepChance, upDownRandSleepChance, randSleepChance
+UpdatemicroDelayChance(*) {
+    global editmicroDelayChance, upDownmicroDelayChance, microDelayChance
 
-    val := editRandSleepChance.Text
+    val := editmicroDelayChance.Text
     if !RegExMatch(val, "^\d+$")
         val := 0
 
     val := Clamp(val, 0, 100)
 
-    randSleepChance := val
-    editRandSleepChance.Text := val
-    upDownRandSleepChance.Value := val
+    microDelayChance := val
+    editmicroDelayChance.Text := val
+    upDownmicroDelayChance.Value := val
 
-    SaveSetting("AntiBan", "RandSleepChance", val)
+    SaveSetting("AntiBan", "MicroDelayChance", val)
 }
 
 UpdateRunButtons() {
@@ -1249,22 +1247,22 @@ ShutdownController(*) {
     ExitApp
 }
 
-ManSleep(minMs := 10, maxMs := "") {
-    global randSleepEnabled, randSleepMax, randSleepChance
+MicroDelay(minMs := 10, maxMs := "") {
+    global microDelayEnabled, microDelayMax, microDelayChance
     global runState
 
     ; Only operate when enabled AND controller state is running
-    if !randSleepEnabled
+    if !microDelayEnabled
         return 0
     if (runState != "running")
         return 0
 
     ; Chance roll (0-100)
-    if (randSleepChance <= 0)
+    if (microDelayChance <= 0)
         return 0
-    if (randSleepChance < 100) {
+    if (microDelayChance < 100) {
         roll := Random(1, 100)
-        if (roll > randSleepChance)
+        if (roll > microDelayChance)
             return 0
     }
 
@@ -1272,7 +1270,7 @@ ManSleep(minMs := 10, maxMs := "") {
     if (minMs < 10)
         minMs := 10
 
-    maxSleep := (maxMs = "") ? randSleepMax : maxMs
+    maxSleep := (maxMs = "") ? microDelayMax : maxMs
     if (maxSleep < minMs)
         maxSleep := minMs
 
@@ -1283,10 +1281,10 @@ ManSleep(minMs := 10, maxMs := "") {
 
 SetAntiBanSubTab(which) {
     global gbFeatures, gbTuning
-    global chkOvershoot, chkRandSleep
+    global chkOvershoot, chkMicroDelay
     global lblOvershootTune, editOvershoot, upDown
-    global lblRandSleepDur, editRandSleep, upDownRandSleep
-    global lblRandSleepChance, editRandSleepChance, upDownRandSleepChance
+    global lblMicroDelayMax, editMicroDelayMax, upDownMicroDelayMax
+    global lblMicroDelayChance, editMicroDelayChance, upDownMicroDelayChance
     global btnAntiFeatures, btnAntiTuning
 
     showFeatures := (which = "features")
@@ -1298,20 +1296,20 @@ SetAntiBanSubTab(which) {
 
     ; Feature controls
     chkOvershoot.Visible := showFeatures
-    chkRandSleep.Visible := showFeatures
+    chkMicroDelay.Visible := showFeatures
 
     ; Tuning controls
     lblOvershootTune.Visible := showTuning
     editOvershoot.Visible := showTuning
     upDown.Visible := showTuning
 
-    lblRandSleepDur.Visible := showTuning
-    editRandSleep.Visible := showTuning
-    upDownRandSleep.Visible := showTuning
+    lblMicroDelayMax.Visible := showTuning
+    editMicroDelayMax.Visible := showTuning
+    upDownMicroDelayMax.Visible := showTuning
 
-    lblRandSleepChance.Visible := showTuning
-    editRandSleepChance.Visible := showTuning
-    upDownRandSleepChance.Visible := showTuning
+    lblmicroDelayChance.Visible := showTuning
+    editmicroDelayChance.Visible := showTuning
+    upDownmicroDelayChance.Visible := showTuning
 
     ; Button enabled hints (optional, feels tab-like)
     btnAntiFeatures.Enabled := !showFeatures
