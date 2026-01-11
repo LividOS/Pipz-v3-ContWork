@@ -3,8 +3,8 @@
 
 ; =========================================================
 ; Pipz MAINTEMPLATE - Controller (AHK v2)
-; Version: 1.0.17
-; Last change: GameTitle now uses cue placeholder instead of hardcoded default
+; Version: 1.0.18
+; Last change: Renamed RandSleep keys to MicroDelay with migration support
 ; =========================================================
 
 ; =========================
@@ -88,17 +88,22 @@ FEATURE_META := Map(
         "tuningTip", "Base overshoot chance (%). Higher = more likely to overshoot."
     ),
     "RandSleep", Map(
-        "section", "AntiBan",
-        "enabledKey", "RandSleepEnabled",
-        "durationKey", "RandSleepMax",
-        "chanceKey", "RandSleepChance",
-        "enabledDefault", 1,
-        "durationDefault", 60,
-        "chanceDefault", 25,
-        "featureTip", "Occasionally adds a short randomized delay while the script is active.",
-        "durationTip", "Max randomized sleep in ms. Actual sleep is randomized between 10ms and this value.",
-        "chanceTip", "Chance (%) that a randomized sleep occurs when ManSleep() is called."
-    )
+		"section", "AntiBan",
+
+		; NEW KEYS (MicroDelay)
+		"enabledKey",  "MicroDelayEnabled",
+		"durationKey", "MicroDelayMax",
+		"chanceKey",   "MicroDelayChance",
+
+		"enabledDefault",  1,
+		"durationDefault", 60,
+		"chanceDefault",   25,
+
+		; Update text to match “Micro Delay”
+		"featureTip",  "Adds small randomized micro-delays during script activity to avoid consistent pacing.",
+		"durationTip", "Max micro delay in ms.",
+		"chanceTip",   "Chance (%) to apply a micro delay at a checkpoint."
+	),
 )
 
 ; =========================
@@ -279,7 +284,7 @@ AddCtrlToolTip(ctrlGui, chkOvershoot, FEATURE_META["Overshoot"]["featureTip"])
 chkOvershoot.OnEvent("Click", OnOvershootToggle)
 
 fy += 30
-chkRandSleep := ctrlGui.AddCheckBox("x" fx " y" fy " w260 " (randSleepEnabled ? "Checked" : ""), "Randomized Sleep")
+chkRandSleep := ctrlGui.AddCheckBox("x" fx " y" fy " w260 " (randSleepEnabled ? "Checked" : ""), "Randomized Micro Delay")
 AddCtrlToolTip(ctrlGui, chkRandSleep, FEATURE_META["RandSleep"]["featureTip"])
 chkRandSleep.OnEvent("Click", OnRandSleepToggle)
 
@@ -825,6 +830,28 @@ InitSettings() {
 		if meta.Has("chanceKey")
 			SaveSetting(sec, meta["chanceKey"], LoadSetting(sec, meta["chanceKey"], meta["chanceDefault"]))
 	}
+	; =========================
+	; Migration: RandSleep* -> MicroDelay*
+	; =========================
+	mdEnabled := Trim(LoadSetting("AntiBan", "MicroDelayEnabled", ""))
+	mdMax     := Trim(LoadSetting("AntiBan", "MicroDelayMax", ""))
+	mdChance  := Trim(LoadSetting("AntiBan", "MicroDelayChance", ""))
+
+	; If any new key is missing, pull from legacy keys (or defaults) and write new.
+	if (mdEnabled = "" || mdMax = "" || mdChance = "") {
+		oldEnabled := LoadSetting("AntiBan", "RandSleepEnabled", FEATURE_META["RandSleep"]["enabledDefault"])
+		oldMax     := LoadSetting("AntiBan", "RandSleepMax",     FEATURE_META["RandSleep"]["durationDefault"])
+		oldChance  := LoadSetting("AntiBan", "RandSleepChance",  FEATURE_META["RandSleep"]["chanceDefault"])
+
+		SaveSetting("AntiBan", "MicroDelayEnabled", oldEnabled)
+		SaveSetting("AntiBan", "MicroDelayMax",     oldMax)
+		SaveSetting("AntiBan", "MicroDelayChance",  oldChance)
+
+		; Optional cleanup (recommended): remove legacy keys after migration
+		try IniDelete(settingsFile, "AntiBan", "RandSleepEnabled")
+		try IniDelete(settingsFile, "AntiBan", "RandSleepMax")
+		try IniDelete(settingsFile, "AntiBan", "RandSleepChance")
+	}
 }
 
 LaunchV1ScriptWithFallback(v1ScriptPath, &pid) {
@@ -1065,6 +1092,11 @@ RestoreDefaults(*) {
 	try upDownRandSleepChance.Value := defaultRandSleepChance
 
 	try SetRandSleepControlsEnabled(randSleepEnabled)
+	
+	; Cleanup legacy RandSleep keys so defaults don’t resurrect old behavior
+	try IniDelete(settingsFile, "AntiBan", "RandSleepEnabled")
+	try IniDelete(settingsFile, "AntiBan", "RandSleepMax")
+	try IniDelete(settingsFile, "AntiBan", "RandSleepChance")
 
     ; --- Apply overlay changes immediately ---
     if showOverlay {

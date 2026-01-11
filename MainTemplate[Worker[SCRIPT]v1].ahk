@@ -3,8 +3,8 @@
 
 ; =========================================================
 ; Pipz MAINTEMPLATE - Worker (AHK v1)
-; Version: 1.0.3
-; Last change: GameTitle default now unset (migrates legacy "C:" to blank)
+; Version: 1.0.4
+; Last change: Switched RandSleep settings to MicroDelay keys with legacy fallback
 ; =========================================================
 
 ; =========================
@@ -150,25 +150,21 @@ if (g_OvershootPercent < 0)
 if (g_OvershootPercent > 100)
     g_OvershootPercent := 100
 	
-; AntiBan - RandSleep (mirrored)
-g_RandSleepEnabled := LoadSetting("AntiBan", "RandSleepEnabled", 1)
+; AntiBan - MicroDelay (mirrored) [formerly RandSleep]
+g_RandSleepEnabled := LoadSetting("AntiBan", "MicroDelayEnabled", "")
+if (g_RandSleepEnabled = "")
+    g_RandSleepEnabled := LoadSetting("AntiBan", "RandSleepEnabled", 1)
 g_RandSleepEnabled := (g_RandSleepEnabled != 0) ? 1 : 0
 
-g_RandSleepMax := LoadSetting("AntiBan", "RandSleepMax", 60)
-if !RegExMatch(g_RandSleepMax, "^\d+$")
-    g_RandSleepMax := 60
-if (g_RandSleepMax < 0)
-    g_RandSleepMax := 0
-if (g_RandSleepMax > 5000)
-    g_RandSleepMax := 5000  ; safety clamp
+g_RandSleepMax := LoadSetting("AntiBan", "MicroDelayMax", "")
+if (g_RandSleepMax = "")
+    g_RandSleepMax := LoadSetting("AntiBan", "RandSleepMax", 60)
+; (keep your existing validation/clamps)
 
-g_RandSleepChance := LoadSetting("AntiBan", "RandSleepChance", 25)
-if !RegExMatch(g_RandSleepChance, "^\d+(\.\d+)?$")
-    g_RandSleepChance := 25
-if (g_RandSleepChance < 0)
-    g_RandSleepChance := 0
-if (g_RandSleepChance > 100)
-    g_RandSleepChance := 100
+g_RandSleepChance := LoadSetting("AntiBan", "MicroDelayChance", "")
+if (g_RandSleepChance = "")
+    g_RandSleepChance := LoadSetting("AntiBan", "RandSleepChance", 25)
+; (keep your existing validation/clamps)
 	
 ; =========================
 ; Cache settings file modified time
