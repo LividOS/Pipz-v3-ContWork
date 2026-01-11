@@ -3,8 +3,8 @@
 
 ; =========================================================
 ; Pipz MAINTEMPLATE - Controller (AHK v2)
-; Version: 1.0.18
-; Last change: Renamed RandSleep keys to MicroDelay with migration support
+; Version: 1.0.19
+; Last change: Updated MicroDelay tuning label text (removed residual RandSleep UI naming)
 ; =========================================================
 
 ; =========================
@@ -312,8 +312,8 @@ editOvershoot.OnEvent("Change", UpdateOvershoot)
 
 ty += 35
 
-; Randomized Sleep Duration tuning
-lblRandSleepDur := ctrlGui.AddText("x" tx " y" ty+2 " w" labelW, "Randomized Sleep Duration (ms)")
+; Randomized Micro Delay Duration Tuning
+lblRandSleepDur := ctrlGui.AddText("x" tx " y" ty+2 " w" labelW, "Micro Delay Max (ms)")
 editRandSleep := ctrlGui.AddEdit("x" editX " y" (ty-2) " w55", randSleepMax)
 upDownRandSleep := ctrlGui.AddUpDown("x" upX " y" (ty-2) " w20 Range10-5000")
 upDownRandSleep.Value := randSleepMax
@@ -325,8 +325,8 @@ editRandSleep.OnEvent("Change", UpdateRandSleep)
 
 ty += 35
 
-; Randomized Sleep Chance tuning
-lblRandSleepChance := ctrlGui.AddText("x" tx " y" ty+2 " w" labelW, "Randomized Sleep Chance (%)")
+; Randomized Micro Delay Chance Tuning
+lblRandSleepChance := ctrlGui.AddText("x" tx " y" ty+2 " w" labelW, "Micro Delay Chance (%)")
 editRandSleepChance := ctrlGui.AddEdit("x" editX " y" (ty-2) " w55", randSleepChance)
 upDownRandSleepChance := ctrlGui.AddUpDown("x" upX " y" (ty-2) " w20 Range0-100")
 upDownRandSleepChance.Value := randSleepChance
