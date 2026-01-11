@@ -349,25 +349,23 @@ RefreshSettings:
     g_ShowOverlay := LoadSetting("General", "ShowOverlay", 1)
     g_ShowOverlay := (g_ShowOverlay != 0) ? 1 : 0
 	
-	; --- AntiBan - RandSleep (refresh) ---
-	g_RandSleepEnabled := LoadSetting("AntiBan", "RandSleepEnabled", g_RandSleepEnabled)
-	g_RandSleepEnabled := (g_RandSleepEnabled != 0) ? 1 : 0
+	; --- AntiBan - MicroDelay (refresh) [formerly RandSleep] ---
+	tmp := LoadSetting("AntiBan", "MicroDelayEnabled", "")
+	if (tmp = "")
+		tmp := LoadSetting("AntiBan", "RandSleepEnabled", g_RandSleepEnabled)
+	g_RandSleepEnabled := (tmp != 0) ? 1 : 0
 
-	g_RandSleepMax := LoadSetting("AntiBan", "RandSleepMax", g_RandSleepMax)
-	if !RegExMatch(g_RandSleepMax, "^\d+$")
-		g_RandSleepMax := 60
-	if (g_RandSleepMax < 0)
-		g_RandSleepMax := 0
-	if (g_RandSleepMax > 5000)
-		g_RandSleepMax := 5000
+	tmp := LoadSetting("AntiBan", "MicroDelayMax", "")
+	if (tmp = "")
+		tmp := LoadSetting("AntiBan", "RandSleepMax", g_RandSleepMax)
+	g_RandSleepMax := tmp
+	; keep your existing validation/clamps below
 
-	g_RandSleepChance := LoadSetting("AntiBan", "RandSleepChance", g_RandSleepChance)
-	if !RegExMatch(g_RandSleepChance, "^\d+(\.\d+)?$")
-		g_RandSleepChance := 25
-	if (g_RandSleepChance < 0)
-		g_RandSleepChance := 0
-	if (g_RandSleepChance > 100)
-		g_RandSleepChance := 100
+	tmp := LoadSetting("AntiBan", "MicroDelayChance", "")
+	if (tmp = "")
+		tmp := LoadSetting("AntiBan", "RandSleepChance", g_RandSleepChance)
+	g_RandSleepChance := tmp
+	; keep your existing validation/clamps below
 
     ; AntiBan - Overshoot (refresh)
     g_OvershootEnabled := LoadSetting("AntiBan", "OvershootEnabled", 1)
