@@ -3,8 +3,8 @@
 
 ; =========================================================
 ; Pipz MAINTEMPLATE - Controller (AHK v2)
-; Version: 1.0.20
-; Last change: Internal cleanup - renamed RandSleep identifiers to MicroDelay (kept legacy migration)
+; Version: 1.0.21
+; Last change: Added Randomized Breaks UI (BreaksEnabled + BreakChance)
 ; =========================================================
 
 ; =========================
@@ -103,6 +103,17 @@ FEATURE_META := Map(
 		"featureTip",  "Adds small randomized micro-delays during script activity to avoid consistent pacing.",
 		"durationTip", "Max micro delay in ms.",
 		"chanceTip",   "Chance (%) to apply a micro delay at a checkpoint."
+	),
+	"Breaks", Map(
+		"section", "AntiBan",
+		"enabledKey", "BreaksEnabled",
+		"chanceKey",  "BreakChance",
+
+		"enabledDefault", 0,
+		"chanceDefault",  2,
+
+		"featureTip", "Occasionally pauses the script for short/long/idle/AFK breaks to simulate stepping away.",
+		"chanceTip",  "Chance (%) to trigger a break at a checkpoint (evaluated during script activity)."
 	),
 )
 
@@ -270,6 +281,9 @@ microDelayEnabled := (LoadSetting("AntiBan", "MicroDelayEnabled", 1) != 0)
 microDelayMax     := LoadSetting("AntiBan", "MicroDelayMax", 60) + 0
 microDelayChance  := LoadSetting("AntiBan", "MicroDelayChance", 25) + 0
 
+breaksEnabled := (LoadSetting("AntiBan", "BreaksEnabled", FEATURE_META["Breaks"]["enabledDefault"]) != 0)
+breakChance   := (LoadSetting("AntiBan", "BreakChance",   FEATURE_META["Breaks"]["chanceDefault"]) + 0)
+
 ; =========================
 ; FEATURES PANEL (checkboxes)
 ; =========================
@@ -286,6 +300,11 @@ fy += 30
 chkMicroDelay := ctrlGui.AddCheckBox("x" fx " y" fy " w260 " (microDelayEnabled ? "Checked" : ""), "Randomized Micro Delay")
 AddCtrlToolTip(ctrlGui, chkMicroDelay, FEATURE_META["MicroDelay"]["featureTip"])
 chkMicroDelay.OnEvent("Click", OnMicroDelayToggle)
+
+fy += 30
+chkBreaks := ctrlGui.AddCheckBox("x" fx " y" fy " w260 " (breaksEnabled ? "Checked" : ""), "Randomized Breaks")
+AddCtrlToolTip(ctrlGui, chkBreaks, FEATURE_META["Breaks"]["featureTip"])
+chkBreaks.OnEvent("Click", OnBreaksToggle)
 
 ; =========================
 ; TUNING PANEL (spinboxes)
@@ -334,9 +353,23 @@ AddCtrlToolTip(ctrlGui, editMicroDelayChance, FEATURE_META["MicroDelay"]["chance
 AddCtrlToolTip(ctrlGui, upDownMicroDelayChance, FEATURE_META["MicroDelay"]["chanceTip"])
 editMicroDelayChance.OnEvent("Change", UpdateMicroDelayChance)
 
+ty += 35
+
+; Randomized Breaks Chance Tuning
+lblBreakChance := ctrlGui.AddText("x" tx " y" ty+2 " w" labelW, "Break Chance (%)")
+editBreakChance := ctrlGui.AddEdit("x" editX " y" (ty-2) " w55", breakChance)
+upDownBreakChance := ctrlGui.AddUpDown("x" upX " y" (ty-2) " w20 Range0-100")
+upDownBreakChance.Value := breakChance
+upDownBreakChance.OnEvent("Change", (*) => (editBreakChance.Text := upDownBreakChance.Value, UpdateBreakChance()))
+AddCtrlToolTip(ctrlGui, lblBreakChance, FEATURE_META["Breaks"]["chanceTip"])
+AddCtrlToolTip(ctrlGui, editBreakChance, FEATURE_META["Breaks"]["chanceTip"])
+AddCtrlToolTip(ctrlGui, upDownBreakChance, FEATURE_META["Breaks"]["chanceTip"])
+editBreakChance.OnEvent("Change", UpdateBreakChance)
+
 ; Apply enabled/disabled states once
 SetOvershootControlsEnabled(overshootEnabled)
 SetMicroDelayControlsEnabled(microDelayEnabled)
+SetBreakControlsEnabled(breaksEnabled)
 
 ; Default sub-tab on open
 SetAntiBanSubTab("features")
@@ -1037,6 +1070,9 @@ RestoreDefaults(*) {
     defaultMicroDelayEnabled := FEATURE_META["MicroDelay"]["enabledDefault"]
 	defaultMicroDelayMax     := FEATURE_META["MicroDelay"]["durationDefault"]
 	defaultMicroDelayChance  := FEATURE_META["MicroDelay"]["chanceDefault"]
+	
+	defaultBreaksEnabled := FEATURE_META["Breaks"]["enabledDefault"]
+	defaultBreakChance   := FEATURE_META["Breaks"]["chanceDefault"]
 
     ; --- Persist defaults to settings file ---
     SaveSetting("General", "GameTitle", defaultGameTitle)
@@ -1048,6 +1084,9 @@ RestoreDefaults(*) {
 	SaveSetting("AntiBan", "MicroDelayEnabled", defaultMicroDelayEnabled)
 	SaveSetting("AntiBan", "MicroDelayMax", defaultMicroDelayMax)
 	SaveSetting("AntiBan", "MicroDelayChance", defaultMicroDelayChance)
+	
+	SaveSetting("AntiBan", "BreaksEnabled", defaultBreaksEnabled)
+	SaveSetting("AntiBan", "BreakChance", defaultBreakChance)
 
     ; Clear cached AHK v1 exe path so user can re-pick if needed
     SaveSetting("General", "AhkV1Exe", "")
@@ -1055,6 +1094,9 @@ RestoreDefaults(*) {
     ; --- Update Runtime variables & General defaults ---
 	gameTitle := defaultGameTitle
 	editGameTitle.Value := ""
+	
+	breaksEnabled := (defaultBreaksEnabled != 0)
+	breakChance   := defaultBreakChance
 
 	; Remove persisted title so it returns to cue placeholder
 	try IniDelete(settingsFile, "General", "GameTitle")
@@ -1087,8 +1129,12 @@ RestoreDefaults(*) {
 
 	try editMicroDelayChance.Text := defaultMicroDelayChance
 	try upDownMicroDelayChance.Value := defaultMicroDelayChance
-
 	try SetMicroDelayControlsEnabled(microDelayEnabled)
+	
+	try chkBreaks.Value := defaultBreaksEnabled
+	try editBreakChance.Text := defaultBreakChance
+	try upDownBreakChance.Value := defaultBreakChance
+	try SetBreakControlsEnabled(breaksEnabled)
 	
 	; Cleanup legacy RandSleep keys so defaults don’t resurrect old behavior
 	try IniDelete(settingsFile, "AntiBan", "RandSleepEnabled")
@@ -1280,10 +1326,11 @@ MicroDelay(minMs := 10, maxMs := "") {
 
 SetAntiBanSubTab(which) {
     global gbFeatures, gbTuning
-    global chkOvershoot, chkMicroDelay
+    global chkOvershoot, chkMicroDelay, chkBreaks
     global lblOvershootTune, editOvershoot, upDown
     global lblMicroDelayMax, editMicroDelayMax, upDownMicroDelayMax
     global lblMicroDelayChance, editMicroDelayChance, upDownMicroDelayChance
+	global lblBreakChance, editBreakChance, upDownBreakChance
     global btnAntiFeatures, btnAntiTuning
 
     showFeatures := (which = "features")
@@ -1296,6 +1343,7 @@ SetAntiBanSubTab(which) {
     ; Feature controls
     chkOvershoot.Visible := showFeatures
     chkMicroDelay.Visible := showFeatures
+	chkBreaks.Visible := showFeatures
 
     ; Tuning controls
     lblOvershootTune.Visible := showTuning
@@ -1305,9 +1353,14 @@ SetAntiBanSubTab(which) {
     lblMicroDelayMax.Visible := showTuning
     editMicroDelayMax.Visible := showTuning
     upDownMicroDelayMax.Visible := showTuning
+	
     lblMicroDelayChance.Visible := showTuning
     editMicroDelayChance.Visible := showTuning
     upDownMicroDelayChance.Visible := showTuning
+	
+	lblBreakChance.Visible := showTuning
+	editBreakChance.Visible := showTuning
+	upDownBreakChance.Visible := showTuning
 
     ; Button enabled hints (optional, feels tab-like)
     btnAntiFeatures.Enabled := !showFeatures
@@ -1373,6 +1426,38 @@ AddCtrlToolTip(guiObj, ctrlObj, tipText) {
     NumPut("Ptr", ctrlObj._tipBuf.Ptr, ti, (A_PtrSize=8) ? 48 : 36)
 
     SendMessage(TTM_ADDTOOLW, 0, ti.Ptr, ttHwnd)
+}
+
+SetBreakControlsEnabled(enabled) {
+    global editBreakChance, upDownBreakChance
+    if IsSet(editBreakChance)
+        editBreakChance.Enabled := enabled
+    if IsSet(upDownBreakChance)
+        upDownBreakChance.Enabled := enabled
+}
+
+OnBreaksToggle(*) {
+    global chkBreaks, breaksEnabled
+    breaksEnabled := (chkBreaks.Value != 0)
+
+    SaveSetting("AntiBan", "BreaksEnabled", breaksEnabled ? 1 : 0)
+    SetBreakControlsEnabled(breaksEnabled)
+}
+
+UpdateBreakChance(*) {
+    global editBreakChance, upDownBreakChance, breakChance
+
+    val := editBreakChance.Text
+    if !RegExMatch(val, "^\d+$")
+        val := 0
+
+    val := Clamp(val, 0, 100)
+
+    breakChance := val
+    editBreakChance.Text := val
+    upDownBreakChance.Value := val
+
+    SaveSetting("AntiBan", "BreakChance", val)
 }
 
 ; =========================
