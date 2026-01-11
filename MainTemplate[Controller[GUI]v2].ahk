@@ -1113,15 +1113,15 @@ RestoreDefaults(*) {
 UpdateMicroDelayChance(*) {
     global editMicroDelayChance, upDownMicroDelayChance, microDelayChance
 
-    val := editmicroDelayChance.Text
+    val := editMicroDelayChance.Text
     if !RegExMatch(val, "^\d+$")
         val := 0
 
     val := Clamp(val, 0, 100)
 
     microDelayChance := val
-    editmicroDelayChance.Text := val
-    upDownmicroDelayChance.Value := val
+    editMicroDelayChance.Text := val
+    upDownMicroDelayChance.Value := val
 
     SaveSetting("AntiBan", "MicroDelayChance", val)
 }
