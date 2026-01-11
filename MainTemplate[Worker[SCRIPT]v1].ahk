@@ -3,8 +3,8 @@
 
 ; =========================================================
 ; Pipz MAINTEMPLATE - Worker (AHK v1)
-; Version: 1.0.4
-; Last change: Switched RandSleep settings to MicroDelay keys with legacy fallback
+; Version: 1.0.6
+; Last change: Added AB_Checkpoint + MicroDelay + Randomized Breaks (with legacy RandSleep fallback)
 ; =========================================================
 
 ; =========================
@@ -103,22 +103,77 @@ LoadSetting(section, key, default) {
 }
 
 ; =========================
-; AntiBan Sleep Wrapper (AHK v1)
-; Use this instead of raw Sleep to apply controller-driven antiban timing.
+; AntiBan Checkpoint
+; Call this BETWEEN actions (move -> checkpoint -> click -> checkpoint -> next action)
 ; =========================
-AB_Sleep(baseMs) {
-    global g_RandSleepEnabled, g_RandSleepMax, g_RandSleepChance
+AB_Checkpoint() {
+    AB_MaybeBreak()
+    AB_MicroDelay()
+}
 
-    ; Apply randomized extra delay (occasionally)
-    if (g_RandSleepEnabled && g_RandSleepMax > 0 && g_RandSleepChance > 0) {
+AB_MicroDelay() {
+    global g_MicroDelayEnabled, g_MicroDelayMax, g_MicroDelayChance
+
+    if (!g_MicroDelayEnabled)
+        return
+    if (g_MicroDelayMax <= 0)
+        return
+    if (g_MicroDelayChance <= 0)
+        return
+
+    if (g_MicroDelayChance < 100) {
         Random, roll, 1, 100
-        if (roll <= g_RandSleepChance) {
-            Random, extra, 1, %g_RandSleepMax%
-            Sleep, %extra%
-        }
+        if (roll > g_MicroDelayChance)
+            return
     }
 
-    ; Always do the intended sleep
+    Random, extra, 0, %g_MicroDelayMax%
+    if (extra > 0)
+        Sleep, %extra%
+}
+
+AB_MaybeBreak() {
+    global g_BreaksEnabled, g_BreakChance
+
+    if (!g_BreaksEnabled)
+        return
+    if (g_BreakChance <= 0)
+        return
+
+    Random, roll, 1, 100
+    if (roll > g_BreakChance)
+        return
+
+    ; Weighted type selection:
+    ; Short(Common)=80, Long(Uncommon)=15, Idle(Rare)=4, AFK(Very Rare)=1
+    Random, pick, 1, 100
+
+    if (pick <= 80) {
+        AB_DoBreak(1000, 5000)          ; 1-5 seconds
+    } else if (pick <= 95) {
+        AB_DoBreak(10000, 30000)        ; 10-30 seconds
+    } else if (pick <= 99) {
+        AB_DoBreak(60000, 180000)       ; 60-180 seconds
+    } else {
+        AB_DoBreak(300000, 900000)      ; 300-900 seconds
+    }
+}
+
+AB_DoBreak(minMs, maxMs) {
+    if (maxMs < minMs)
+        maxMs := minMs
+    Random, dur, %minMs%, %maxMs%
+    Sleep, %dur%
+}
+
+; =========================
+; AntiBan Sleep Wrapper (AHK v1)
+; Base sleep + AntiBan checkpoint behavior.
+; =========================
+AB_Sleep(baseMs) {
+    ; Run antiban logic (may break + may micro-delay)
+    AB_Checkpoint()
+
     if (baseMs < 0)
         baseMs := 0
     Sleep, %baseMs%
@@ -150,21 +205,43 @@ if (g_OvershootPercent < 0)
 if (g_OvershootPercent > 100)
     g_OvershootPercent := 100
 	
-; AntiBan - MicroDelay (mirrored) [formerly RandSleep]
-g_RandSleepEnabled := LoadSetting("AntiBan", "MicroDelayEnabled", "")
-if (g_RandSleepEnabled = "")
-    g_RandSleepEnabled := LoadSetting("AntiBan", "RandSleepEnabled", 1)
-g_RandSleepEnabled := (g_RandSleepEnabled != 0) ? 1 : 0
+; AntiBan - MicroDelay (mirrored) [legacy fallback: RandSleep]
+g_MicroDelayEnabled := LoadSetting("AntiBan", "MicroDelayEnabled", "")
+if (g_MicroDelayEnabled = "")
+    g_MicroDelayEnabled := LoadSetting("AntiBan", "RandSleepEnabled", 1)
+g_MicroDelayEnabled := (g_MicroDelayEnabled != 0) ? 1 : 0
 
-g_RandSleepMax := LoadSetting("AntiBan", "MicroDelayMax", "")
-if (g_RandSleepMax = "")
-    g_RandSleepMax := LoadSetting("AntiBan", "RandSleepMax", 60)
-; (keep your existing validation/clamps)
+g_MicroDelayMax := LoadSetting("AntiBan", "MicroDelayMax", "")
+if (g_MicroDelayMax = "")
+    g_MicroDelayMax := LoadSetting("AntiBan", "RandSleepMax", 60)
+if !RegExMatch(g_MicroDelayMax, "^\d+$")
+    g_MicroDelayMax := 60
+if (g_MicroDelayMax < 0)
+    g_MicroDelayMax := 0
+if (g_MicroDelayMax > 5000)
+    g_MicroDelayMax := 5000
 
-g_RandSleepChance := LoadSetting("AntiBan", "MicroDelayChance", "")
-if (g_RandSleepChance = "")
-    g_RandSleepChance := LoadSetting("AntiBan", "RandSleepChance", 25)
-; (keep your existing validation/clamps)
+g_MicroDelayChance := LoadSetting("AntiBan", "MicroDelayChance", "")
+if (g_MicroDelayChance = "")
+    g_MicroDelayChance := LoadSetting("AntiBan", "RandSleepChance", 25)
+if !RegExMatch(g_MicroDelayChance, "^\d+$")
+    g_MicroDelayChance := 25
+if (g_MicroDelayChance < 0)
+    g_MicroDelayChance := 0
+if (g_MicroDelayChance > 100)
+    g_MicroDelayChance := 100
+	
+; AntiBan - Randomized Breaks (mirrored)
+g_BreaksEnabled := LoadSetting("AntiBan", "BreaksEnabled", 0)
+g_BreaksEnabled := (g_BreaksEnabled != 0) ? 1 : 0
+
+g_BreakChance := LoadSetting("AntiBan", "BreakChance", 0)
+if !RegExMatch(g_BreakChance, "^\d+$")
+    g_BreakChance := 0
+if (g_BreakChance < 0)
+    g_BreakChance := 0
+if (g_BreakChance > 100)
+    g_BreakChance := 100
 	
 ; =========================
 ; Cache settings file modified time
@@ -349,23 +426,46 @@ RefreshSettings:
     g_ShowOverlay := LoadSetting("General", "ShowOverlay", 1)
     g_ShowOverlay := (g_ShowOverlay != 0) ? 1 : 0
 	
-	; --- AntiBan - MicroDelay (refresh) [formerly RandSleep] ---
+	; --- AntiBan - MicroDelay (refresh) [legacy fallback: RandSleep] ---
 	tmp := LoadSetting("AntiBan", "MicroDelayEnabled", "")
 	if (tmp = "")
-		tmp := LoadSetting("AntiBan", "RandSleepEnabled", g_RandSleepEnabled)
-	g_RandSleepEnabled := (tmp != 0) ? 1 : 0
+		tmp := LoadSetting("AntiBan", "RandSleepEnabled", g_MicroDelayEnabled)
+	g_MicroDelayEnabled := (tmp != 0) ? 1 : 0
 
 	tmp := LoadSetting("AntiBan", "MicroDelayMax", "")
 	if (tmp = "")
-		tmp := LoadSetting("AntiBan", "RandSleepMax", g_RandSleepMax)
-	g_RandSleepMax := tmp
-	; keep your existing validation/clamps below
+		tmp := LoadSetting("AntiBan", "RandSleepMax", g_MicroDelayMax)
+	g_MicroDelayMax := tmp
+	if !RegExMatch(g_MicroDelayMax, "^\d+$")
+		g_MicroDelayMax := 60
+	if (g_MicroDelayMax < 0)
+		g_MicroDelayMax := 0
+	if (g_MicroDelayMax > 5000)
+		g_MicroDelayMax := 5000
 
 	tmp := LoadSetting("AntiBan", "MicroDelayChance", "")
 	if (tmp = "")
-		tmp := LoadSetting("AntiBan", "RandSleepChance", g_RandSleepChance)
-	g_RandSleepChance := tmp
-	; keep your existing validation/clamps below
+		tmp := LoadSetting("AntiBan", "RandSleepChance", g_MicroDelayChance)
+	g_MicroDelayChance := tmp
+	if !RegExMatch(g_MicroDelayChance, "^\d+$")
+		g_MicroDelayChance := 25
+	if (g_MicroDelayChance < 0)
+		g_MicroDelayChance := 0
+	if (g_MicroDelayChance > 100)
+		g_MicroDelayChance := 100
+
+	; --- AntiBan - Randomized Breaks (refresh) ---
+	tmp := LoadSetting("AntiBan", "BreaksEnabled", g_BreaksEnabled)
+	g_BreaksEnabled := (tmp != 0) ? 1 : 0
+
+	tmp := LoadSetting("AntiBan", "BreakChance", g_BreakChance)
+	g_BreakChance := tmp
+	if !RegExMatch(g_BreakChance, "^\d+$")
+		g_BreakChance := 0
+	if (g_BreakChance < 0)
+		g_BreakChance := 0
+	if (g_BreakChance > 100)
+		g_BreakChance := 100
 
     ; AntiBan - Overshoot (refresh)
     g_OvershootEnabled := LoadSetting("AntiBan", "OvershootEnabled", 1)
