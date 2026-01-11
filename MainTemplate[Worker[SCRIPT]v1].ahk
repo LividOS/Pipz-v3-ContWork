@@ -134,12 +134,28 @@ AB_MicroDelay() {
 
 AB_MaybeBreak() {
     global g_BreaksEnabled, g_BreakChance
+    static lastEvalTick := 0
+    static lastBreakTick := 0
 
     if (!g_BreaksEnabled)
         return
     if (g_BreakChance <= 0)
         return
 
+    now := A_TickCount
+
+    ; 1) Evaluate at most once per 10000ms (prevents “200 calls => guaranteed break”)
+    if (now - lastEvalTick < 10000)
+        return
+    lastEvalTick := now
+
+    ; 2) Cooldown: minimum time between breaks (tune this)
+    ; Example: 3 minutes
+    minBetweenBreaksMs := g_BreakCooldownMin * 60000
+    if (lastBreakTick && (now - lastBreakTick < minBetweenBreaksMs))
+        return
+
+    ; Chance roll (now effectively “per second” while active)
     Random, roll, 1, 100
     if (roll > g_BreakChance)
         return
@@ -147,16 +163,17 @@ AB_MaybeBreak() {
     ; Weighted type selection:
     ; Short(Common)=80, Long(Uncommon)=15, Idle(Rare)=4, AFK(Very Rare)=1
     Random, pick, 1, 100
-
     if (pick <= 80) {
-        AB_DoBreak(1000, 5000)          ; 1-5 seconds
+        AB_DoBreak(1000, 5000)
     } else if (pick <= 95) {
-        AB_DoBreak(10000, 30000)        ; 10-30 seconds
+        AB_DoBreak(10000, 30000)
     } else if (pick <= 99) {
-        AB_DoBreak(60000, 180000)       ; 60-180 seconds
+        AB_DoBreak(60000, 180000)
     } else {
-        AB_DoBreak(300000, 900000)      ; 300-900 seconds
+        AB_DoBreak(300000, 900000)
     }
+
+    lastBreakTick := A_TickCount
 }
 
 AB_DoBreak(minMs, maxMs) {
@@ -242,6 +259,14 @@ if (g_BreakChance < 0)
     g_BreakChance := 0
 if (g_BreakChance > 100)
     g_BreakChance := 100
+	
+g_BreakCooldownMin := LoadSetting("AntiBan", "BreakCooldownMin", 3)
+if !RegExMatch(g_BreakCooldownMin, "^\d+$")
+    g_BreakCooldownMin := 3
+if (g_BreakCooldownMin < 0)
+    g_BreakCooldownMin := 0
+if (g_BreakCooldownMin > 120)
+    g_BreakCooldownMin := 120
 	
 ; =========================
 ; Cache settings file modified time
@@ -466,6 +491,15 @@ RefreshSettings:
 		g_BreakChance := 0
 	if (g_BreakChance > 100)
 		g_BreakChance := 100
+		
+	tmp := LoadSetting("AntiBan", "BreakCooldownMin", g_BreakCooldownMin)
+	g_BreakCooldownMin := tmp
+	if !RegExMatch(g_BreakCooldownMin, "^\d+$")
+		g_BreakCooldownMin := 3
+	if (g_BreakCooldownMin < 0)
+		g_BreakCooldownMin := 0
+	if (g_BreakCooldownMin > 120)
+		g_BreakCooldownMin := 120
 
     ; AntiBan - Overshoot (refresh)
     g_OvershootEnabled := LoadSetting("AntiBan", "OvershootEnabled", 1)

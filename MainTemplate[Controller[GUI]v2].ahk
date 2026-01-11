@@ -3,8 +3,8 @@
 
 ; =========================================================
 ; Pipz MAINTEMPLATE - Controller (AHK v2)
-; Version: 1.0.21
-; Last change: Added Randomized Breaks UI (BreaksEnabled + BreakChance)
+; Version: 1.0.22
+; Last change: Added BreakCooldownMin tuning (min minutes between breaks)
 ; =========================================================
 
 ; =========================
@@ -108,12 +108,15 @@ FEATURE_META := Map(
 		"section", "AntiBan",
 		"enabledKey", "BreaksEnabled",
 		"chanceKey",  "BreakChance",
+		"cooldownKey","BreakCooldownMin",
 
-		"enabledDefault", 1,
+		"enabledDefault", 0,
 		"chanceDefault",  2,
+		"cooldownDefault", 3,
 
 		"featureTip", "Occasionally pauses the script for short/long/idle/AFK breaks to simulate stepping away.",
-		"chanceTip",  "Chance (%) to trigger a break at a checkpoint (evaluated during script activity)."
+		"chanceTip",  "Chance (%) to trigger a break at a checkpoint (evaluated during script activity).",
+		"cooldownTip","Minimum minutes between breaks (prevents breaks triggering too frequently)."
 	),
 )
 
@@ -283,6 +286,10 @@ microDelayChance  := LoadSetting("AntiBan", "MicroDelayChance", 25) + 0
 
 breaksEnabled := (LoadSetting("AntiBan", "BreaksEnabled", FEATURE_META["Breaks"]["enabledDefault"]) != 0)
 breakChance   := (LoadSetting("AntiBan", "BreakChance",   FEATURE_META["Breaks"]["chanceDefault"]) + 0)
+breakCooldownMin := (LoadSetting("AntiBan", "BreakCooldownMin", FEATURE_META["Breaks"]["cooldownDefault"]) + 0)
+
+; Clamp AFTER load, BEFORE UI creation
+breakCooldownMin := Clamp(breakCooldownMin, 0, 120) ; 0 = no cooldown, cap at 2h
 
 ; =========================
 ; FEATURES PANEL (checkboxes)
@@ -365,6 +372,19 @@ AddCtrlToolTip(ctrlGui, lblBreakChance, FEATURE_META["Breaks"]["chanceTip"])
 AddCtrlToolTip(ctrlGui, editBreakChance, FEATURE_META["Breaks"]["chanceTip"])
 AddCtrlToolTip(ctrlGui, upDownBreakChance, FEATURE_META["Breaks"]["chanceTip"])
 editBreakChance.OnEvent("Change", UpdateBreakChance)
+
+ty += 35
+
+; Randomized Breaks Cooldown Tuning
+lblBreakCooldown := ctrlGui.AddText("x" tx " y" ty+2 " w" labelW, "Min Minutes Between Breaks")
+editBreakCooldown := ctrlGui.AddEdit("x" editX " y" (ty-2) " w55", breakCooldownMin)
+upDownBreakCooldown := ctrlGui.AddUpDown("x" upX " y" (ty-2) " w20 Range0-120")
+upDownBreakCooldown.Value := breakCooldownMin
+upDownBreakCooldown.OnEvent("Change", (*) => (editBreakCooldown.Text := upDownBreakCooldown.Value, UpdateBreakCooldown()))
+AddCtrlToolTip(ctrlGui, lblBreakCooldown, FEATURE_META["Breaks"]["cooldownTip"])
+AddCtrlToolTip(ctrlGui, editBreakCooldown, FEATURE_META["Breaks"]["cooldownTip"])
+AddCtrlToolTip(ctrlGui, upDownBreakCooldown, FEATURE_META["Breaks"]["cooldownTip"])
+editBreakCooldown.OnEvent("Change", UpdateBreakCooldown)
 
 ; Apply enabled/disabled states once
 SetOvershootControlsEnabled(overshootEnabled)
@@ -859,6 +879,9 @@ InitSettings() {
 
 		if meta.Has("chanceKey")
 			SaveSetting(sec, meta["chanceKey"], LoadSetting(sec, meta["chanceKey"], meta["chanceDefault"]))
+			
+		if meta.Has("cooldownKey")
+			SaveSetting(sec, meta["cooldownKey"], LoadSetting(sec, meta["cooldownKey"], meta["cooldownDefault"]))
 	}
 	; =========================
 	; Migration: RandSleep* -> MicroDelay*
@@ -1073,6 +1096,7 @@ RestoreDefaults(*) {
 	
 	defaultBreaksEnabled := FEATURE_META["Breaks"]["enabledDefault"]
 	defaultBreakChance   := FEATURE_META["Breaks"]["chanceDefault"]
+	defaultBreakCooldownMin := FEATURE_META["Breaks"]["cooldownDefault"]
 
     ; --- Persist defaults to settings file ---
     SaveSetting("General", "GameTitle", defaultGameTitle)
@@ -1087,6 +1111,7 @@ RestoreDefaults(*) {
 	
 	SaveSetting("AntiBan", "BreaksEnabled", defaultBreaksEnabled)
 	SaveSetting("AntiBan", "BreakChance", defaultBreakChance)
+	SaveSetting("AntiBan", "BreakCooldownMin", defaultBreakCooldownMin)
 
     ; Clear cached AHK v1 exe path so user can re-pick if needed
     SaveSetting("General", "AhkV1Exe", "")
@@ -1097,6 +1122,7 @@ RestoreDefaults(*) {
 	
 	breaksEnabled := (defaultBreaksEnabled != 0)
 	breakChance   := defaultBreakChance
+	breakCooldownMin := defaultBreakCooldownMin
 
 	; Remove persisted title so it returns to cue placeholder
 	try IniDelete(settingsFile, "General", "GameTitle")
@@ -1134,6 +1160,8 @@ RestoreDefaults(*) {
 	try chkBreaks.Value := defaultBreaksEnabled
 	try editBreakChance.Text := defaultBreakChance
 	try upDownBreakChance.Value := defaultBreakChance
+	try editBreakCooldown.Text := defaultBreakCooldownMin
+	try upDownBreakCooldown.Value := defaultBreakCooldownMin
 	try SetBreakControlsEnabled(breaksEnabled)
 	
 	; Cleanup legacy RandSleep keys so defaults don’t resurrect old behavior
@@ -1331,6 +1359,7 @@ SetAntiBanSubTab(which) {
     global lblMicroDelayMax, editMicroDelayMax, upDownMicroDelayMax
     global lblMicroDelayChance, editMicroDelayChance, upDownMicroDelayChance
 	global lblBreakChance, editBreakChance, upDownBreakChance
+	global lblBreakCooldown, editBreakCooldown, upDownBreakCooldown
     global btnAntiFeatures, btnAntiTuning
 
     showFeatures := (which = "features")
@@ -1361,6 +1390,10 @@ SetAntiBanSubTab(which) {
 	lblBreakChance.Visible := showTuning
 	editBreakChance.Visible := showTuning
 	upDownBreakChance.Visible := showTuning
+	
+	lblBreakCooldown.Visible := showTuning
+	editBreakCooldown.Visible := showTuning
+	upDownBreakCooldown.Visible := showTuning
 
     ; Button enabled hints (optional, feels tab-like)
     btnAntiFeatures.Enabled := !showFeatures
@@ -1430,10 +1463,17 @@ AddCtrlToolTip(guiObj, ctrlObj, tipText) {
 
 SetBreakControlsEnabled(enabled) {
     global editBreakChance, upDownBreakChance
+    global editBreakCooldown, upDownBreakCooldown
+
     if IsSet(editBreakChance)
         editBreakChance.Enabled := enabled
     if IsSet(upDownBreakChance)
         upDownBreakChance.Enabled := enabled
+
+    if IsSet(editBreakCooldown)
+        editBreakCooldown.Enabled := enabled
+    if IsSet(upDownBreakCooldown)
+        upDownBreakCooldown.Enabled := enabled
 }
 
 OnBreaksToggle(*) {
@@ -1458,6 +1498,22 @@ UpdateBreakChance(*) {
     upDownBreakChance.Value := val
 
     SaveSetting("AntiBan", "BreakChance", val)
+}
+
+UpdateBreakCooldown(*) {
+    global editBreakCooldown, upDownBreakCooldown, breakCooldownMin
+
+    val := editBreakCooldown.Text
+    if !RegExMatch(val, "^\d+$")
+        val := 0
+
+    val := Clamp(val, 0, 120)
+
+    breakCooldownMin := val
+    editBreakCooldown.Text := val
+    upDownBreakCooldown.Value := val
+
+    SaveSetting("AntiBan", "BreakCooldownMin", val)
 }
 
 ; =========================
