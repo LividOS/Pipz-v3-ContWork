@@ -324,9 +324,9 @@ editMicroDelayMax.OnEvent("Change", UpdateMicroDelayMax)
 ty += 35
 
 ; Micro Delay Chance Tuning
-lblMicroDelayChance := ctrlGui.AddText(..., "Micro Delay Chance (%)")
-editMicroDelayChance := ctrlGui.AddEdit(..., microDelayChance)
-upDownMicroDelayChance := ctrlGui.AddUpDown(...)
+lblMicroDelayChance := ctrlGui.AddText("x" tx " y" ty+2 " w" labelW, "Micro Delay Chance (%)")
+editMicroDelayChance := ctrlGui.AddEdit("x" editX " y" (ty-2) " w55", microDelayChance)
+upDownMicroDelayChance := := ctrlGui.AddUpDown("x" upX " y" (ty-2) " w20 Range0-100")
 
 upDownMicroDelayChance.Value := microDelayChance
 upDownMicroDelayChance.OnEvent("Change", (*) => (editMicroDelayChance.Text := upDownMicroDelayChance.Value, UpdateMicroDelayChance()))
