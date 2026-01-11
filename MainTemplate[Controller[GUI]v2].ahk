@@ -109,7 +109,7 @@ FEATURE_META := Map(
 		"enabledKey", "BreaksEnabled",
 		"chanceKey",  "BreakChance",
 
-		"enabledDefault", 0,
+		"enabledDefault", 1,
 		"chanceDefault",  2,
 
 		"featureTip", "Occasionally pauses the script for short/long/idle/AFK breaks to simulate stepping away.",
