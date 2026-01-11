@@ -323,16 +323,16 @@ editMicroDelayMax.OnEvent("Change", UpdateMicroDelayMax)
 
 ty += 35
 
-; Randomized Micro Delay Chance Tuning
-lblmicroDelayChance := ctrlGui.AddText("x" tx " y" ty+2 " w" labelW, "Micro Delay Chance (%)")
-editmicroDelayChance := ctrlGui.AddEdit("x" editX " y" (ty-2) " w55", microDelayChance)
-upDownmicroDelayChance := ctrlGui.AddUpDown("x" upX " y" (ty-2) " w20 Range0-100")
-upDownmicroDelayChance.Value := microDelayChance
-upDownmicroDelayChance.OnEvent("Change", (*) => (editmicroDelayChance.Text := upDownmicroDelayChance.Value, UpdatemicroDelayChance()))
-AddCtrlToolTip(ctrlGui, lblmicroDelayChance, FEATURE_META["MicroDelay"]["chanceTip"])
-AddCtrlToolTip(ctrlGui, editmicroDelayChance, FEATURE_META["MicroDelay"]["chanceTip"])
-AddCtrlToolTip(ctrlGui, upDownmicroDelayChance, FEATURE_META["MicroDelay"]["chanceTip"])
-editmicroDelayChance.OnEvent("Change", UpdatemicroDelayChance)
+; Micro Delay Chance Tuning
+lblMicroDelayChance := ctrlGui.AddText(..., "Micro Delay Chance (%)")
+editMicroDelayChance := ctrlGui.AddEdit(..., microDelayChance)
+upDownMicroDelayChance := ctrlGui.AddUpDown(...)
+
+upDownMicroDelayChance.Value := microDelayChance
+upDownMicroDelayChance.OnEvent("Change", (*) => (editMicroDelayChance.Text := upDownMicroDelayChance.Value, UpdateMicroDelayChance()))
+AddCtrlToolTip(ctrlGui, editMicroDelayChance, FEATURE_META["MicroDelay"]["chanceTip"])
+AddCtrlToolTip(ctrlGui, upDownMicroDelayChance, FEATURE_META["MicroDelay"]["chanceTip"])
+editMicroDelayChance.OnEvent("Change", UpdateMicroDelayChance)
 
 ; Apply enabled/disabled states once
 SetOvershootControlsEnabled(overshootEnabled)
@@ -772,17 +772,16 @@ OnMicroDelayToggle(*) {
 
 SetMicroDelayControlsEnabled(enabled) {
     global editMicroDelayMax, upDownMicroDelayMax
-    global editmicroDelayChance, upDownmicroDelayChance
+    global editMicroDelayChance, upDownMicroDelayChance
 
     if IsSet(editMicroDelayMax)
         editMicroDelayMax.Enabled := enabled
     if IsSet(upDownMicroDelayMax)
         upDownMicroDelayMax.Enabled := enabled
-
-    if IsSet(editmicroDelayChance)
-        editmicroDelayChance.Enabled := enabled
-    if IsSet(upDownmicroDelayChance)
-        upDownmicroDelayChance.Enabled := enabled
+    if IsSet(editMicroDelayChance)
+        editMicroDelayChance.Enabled := enabled
+    if IsSet(upDownMicroDelayChance)
+        upDownMicroDelayChance.Enabled := enabled
 }
 
 UpdateMicroDelayMax(*) {
@@ -837,9 +836,9 @@ InitSettings() {
 
 	; If any new key is missing, pull from legacy keys (or defaults) and write new.
 	if (mdEnabled = "" || mdMax = "" || mdChance = "") {
-		oldEnabled := LoadSetting("AntiBan", "microDelayEnabled", FEATURE_META["MicroDelay"]["enabledDefault"])
-		oldMax     := LoadSetting("AntiBan", "microDelayMax",     FEATURE_META["MicroDelay"]["durationDefault"])
-		oldChance  := LoadSetting("AntiBan", "microDelayChance",  FEATURE_META["MicroDelay"]["chanceDefault"])
+		oldEnabled := LoadSetting("AntiBan", "RandSleepEnabled", FEATURE_META["MicroDelay"]["enabledDefault"])
+		oldMax     := LoadSetting("AntiBan", "RandSleepMax",     FEATURE_META["MicroDelay"]["durationDefault"])
+		oldChance  := LoadSetting("AntiBan", "RandSleepChance",  FEATURE_META["MicroDelay"]["chanceDefault"])
 
 		SaveSetting("AntiBan", "MicroDelayEnabled", oldEnabled)
 		SaveSetting("AntiBan", "MicroDelayMax",     oldMax)
@@ -1068,9 +1067,9 @@ RestoreDefaults(*) {
     overshootEnabled := (defaultOvershootEnabled != 0)
     overshootValue := defaultOvershoot
 	
-	microDelayEnabled := (defaultmicroDelayEnabled != 0)
-	microDelayMax := defaultmicroDelayMax
-	microDelayChance := defaultmicroDelayChance
+	microDelayEnabled := (defaultMicroDelayEnabled != 0)
+	microDelayMax := defaultMicroDelayMax
+	microDelayChance := defaultMicroDelayChance
 
     ; --- Update General tab controls ---
     try chkShowOverlay.Value := defaultShowOverlay
@@ -1082,19 +1081,19 @@ RestoreDefaults(*) {
     try upDown.Value := defaultOvershoot
     try SetOvershootControlsEnabled(overshootEnabled)
 	
-	try chkMicroDelay.Value := defaultmicroDelayEnabled
-	try editMicroDelayMax.Text := defaultmicroDelayMax
-	try upDownMicroDelayMax.Value := defaultmicroDelayMax
+	try chkMicroDelay.Value := defaultMicroDelayEnabled
+	try editMicroDelayMax.Text := defaultMicroDelayMax
+	try upDownMicroDelayMax.Value := defaultMicroDelayMax
 
-	try editmicroDelayChance.Text := defaultmicroDelayChance
-	try upDownmicroDelayChance.Value := defaultmicroDelayChance
+	try editMicroDelayChance.Text := defaultMicroDelayChance
+	try upDownMicroDelayChance.Value := defaultMicroDelayChance
 
 	try SetMicroDelayControlsEnabled(microDelayEnabled)
 	
 	; Cleanup legacy RandSleep keys so defaults don’t resurrect old behavior
-	try IniDelete(settingsFile, "AntiBan", "microDelayEnabled")
-	try IniDelete(settingsFile, "AntiBan", "microDelayMax")
-	try IniDelete(settingsFile, "AntiBan", "microDelayChance")
+	try IniDelete(settingsFile, "AntiBan", "RandSleepEnabled")
+	try IniDelete(settingsFile, "AntiBan", "RandSleepMax")
+	try IniDelete(settingsFile, "AntiBan", "RandSleepChance")
 
     ; --- Apply overlay changes immediately ---
     if showOverlay {
@@ -1111,8 +1110,8 @@ RestoreDefaults(*) {
     SetTimer(ClearInlineOverride, -2500)
 }
 
-UpdatemicroDelayChance(*) {
-    global editmicroDelayChance, upDownmicroDelayChance, microDelayChance
+UpdateMicroDelayChance(*) {
+    global editMicroDelayChance, upDownMicroDelayChance, microDelayChance
 
     val := editmicroDelayChance.Text
     if !RegExMatch(val, "^\d+$")
@@ -1306,10 +1305,9 @@ SetAntiBanSubTab(which) {
     lblMicroDelayMax.Visible := showTuning
     editMicroDelayMax.Visible := showTuning
     upDownMicroDelayMax.Visible := showTuning
-
-    lblmicroDelayChance.Visible := showTuning
-    editmicroDelayChance.Visible := showTuning
-    upDownmicroDelayChance.Visible := showTuning
+    lblMicroDelayChance.Visible := showTuning
+    editMicroDelayChance.Visible := showTuning
+    upDownMicroDelayChance.Visible := showTuning
 
     ; Button enabled hints (optional, feels tab-like)
     btnAntiFeatures.Enabled := !showFeatures
