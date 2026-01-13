@@ -282,12 +282,18 @@ innerW := panelW - 20
 innerH := panelH - 35
 
 ; Scrollable child GUIs (WS_VSCROLL style: 0x00200000)
-; IMPORTANT: AHK v2 Tab3 does not expose reliable tab-page HWNDs for parenting.
-; So we parent to ctrlGui and explicitly Hide/Show on main tab changes.
-featuresGui := Gui("-Caption +Parent" ctrlGui.Hwnd " +0x00200000")
-tuningGui   := Gui("-Caption +Parent" ctrlGui.Hwnd " +0x00200000")
+; IMPORTANT: Parent to the Tab control HWND for correct clipping/repaint.
+featuresGui := Gui("-Caption -Border +Parent" tabs.Hwnd " +0x00200000")
+tuningGui   := Gui("-Caption -Border +Parent" tabs.Hwnd " +0x00200000")
 
-; Make them visually blend in
+; Match controller styling
+featuresGui.SetFont("s10", "Segoe UI")
+tuningGui.SetFont("s10", "Segoe UI")
+
+; Match background
+featuresGui.BackColor := "FFFFFF"
+tuningGui.BackColor   := "FFFFFF"
+
 featuresGui.MarginX := 0, featuresGui.MarginY := 0
 tuningGui.MarginX   := 0, tuningGui.MarginY   := 0
 
@@ -347,6 +353,8 @@ ty := 10
 labelW := innerW - 140
 editX  := innerW - 95
 upX    := innerW - 35
+
+tuningGui.SetFont("s10 Bold", "Segoe UI")
 
 ; --- Overshoot tuning ---
 lblOvershootTune := tuningGui.AddText("x" tx " y" ty+2 " w" labelW, "Overshoot (%)")
@@ -1391,10 +1399,18 @@ SetAntiBanSubTab(which) {
         return
     }
 
+    ; Get tab control position so we can convert absolute ctrlGui coords -> tab-relative coords
+    tabs.GetPos(&tabX, &tabY, &tabW, &tabH)
+
+    ; These are ctrlGui coordinates for the content area
     viewX := panelX + 10
     viewY := panelY + 25
     viewW := panelW - 20
     viewH := panelH - 35
+
+    ; Convert to tab-relative coordinates (child GUIs are parented to tabs.Hwnd)
+    relX := viewX - tabX
+    relY := viewY - tabY
 
     showFeatures := (which = "features")
     showTuning := !showFeatures
@@ -1404,15 +1420,18 @@ SetAntiBanSubTab(which) {
 
     if (showFeatures) {
         try tuningGui.Hide()
-        featuresGui.Show("NA x" viewX " y" viewY " w" viewW " h" viewH)
+        featuresGui.Show("NA x" relX " y" relY " w" viewW " h" viewH)
         BringChildToFront(featuresGui.Hwnd)
         ForceRepaint(featuresGui.Hwnd)
     } else {
         try featuresGui.Hide()
-        tuningGui.Show("NA x" viewX " y" viewY " w" viewW " h" viewH)
+        tuningGui.Show("NA x" relX " y" relY " w" viewW " h" viewH)
         BringChildToFront(tuningGui.Hwnd)
         ForceRepaint(tuningGui.Hwnd)
     }
+
+    ; Force tab control repaint to avoid "appears after hover"
+    ForceRepaint(tabs.Hwnd)
 
     btnAntiFeatures.Enabled := !showFeatures
     btnAntiTuning.Enabled := !showTuning
@@ -1550,14 +1569,14 @@ BringChildToFront(hwnd) {
 OnMainTabChange(*) {
     global tabs, featuresGui, tuningGui
 
-    ; Anti-Ban tab index is 3
     if (tabs.Value != 3) {
         try featuresGui.Hide()
         try tuningGui.Hide()
-    } else {
-        ; Entering Anti-Ban: show default sub-tab
-        SetAntiBanSubTab("features")
+        return
     }
+
+    ; Defer one tick so the tab finishes repainting before we show child GUIs
+    SetTimer(() => SetAntiBanSubTab("features"), -1)
 }
 
 ForceRepaint(hwnd) {
