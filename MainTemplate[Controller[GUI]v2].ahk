@@ -4,7 +4,7 @@
 ; =========================================================
 ; Pipz MAINTEMPLATE - Controller (AHK v2)
 ; Version: 1.0.22
-; Last change: Added BreakCooldownMin tuning (min minutes between breaks)
+; Last change: Added BreakCooldownMin tuning (minimum time between breaks in minutes)
 ; =========================================================
 
 ; =========================
@@ -84,8 +84,8 @@ FEATURE_META := Map(
         "valueKey", "Overshoot",
         "enabledDefault", 1,
         "valueDefault", 5,
-        "featureTip", "Chance for mouse to slightly miss target destination and correct.",
-        "tuningTip", "Base overshoot chance (%). Higher = more likely to overshoot."
+        "featureTip", "Occasionally mouse will slightly miss target destination and correct. (Simulates human error/inaccuracy)",
+        "tuningTip", "Chance to overshoot destination. (Higher = more likely)"
     ),
     "MicroDelay", Map(
 		"section", "AntiBan",
@@ -100,9 +100,9 @@ FEATURE_META := Map(
 		"chanceDefault",   25,
 
 		; Update text to match “Micro Delay”
-		"featureTip",  "Adds small randomized micro-delays during script activity to avoid consistent pacing.",
-		"durationTip", "Max micro delay in ms.",
-		"chanceTip",   "Chance (%) to apply a micro delay at a checkpoint."
+		"featureTip",  "Adds small randomized micro-delays. (Avoids consistent pacing)",
+		"durationTip", "Max delay time. [In milliseconds]",
+		"chanceTip",   "Chance to apply a delay to an action."
 	),
 	"Breaks", Map(
 		"section", "AntiBan",
@@ -114,9 +114,9 @@ FEATURE_META := Map(
 		"chanceDefault",  2,
 		"cooldownDefault", 3,
 
-		"featureTip", "Occasionally pauses the script for short/long/idle/AFK breaks to simulate stepping away.",
-		"chanceTip",  "Chance (%) to trigger a break at a checkpoint (evaluated during script activity).",
-		"cooldownTip","Minimum minutes between breaks (prevents breaks triggering too frequently)."
+		"featureTip", "Occasionally pauses the script. (Simulates stepping away)",
+		"chanceTip",  "Chance to trigger a break.",
+		"cooldownTip","Minimum time between breaks. [In minutes] (Prevents breaks triggering too frequently)"
 	),
 )
 
@@ -376,7 +376,7 @@ editBreakChance.OnEvent("Change", UpdateBreakChance)
 ty += 35
 
 ; Randomized Breaks Cooldown Tuning
-lblBreakCooldown := ctrlGui.AddText("x" tx " y" ty+2 " w" labelW, "Min Minutes Between Breaks")
+lblBreakCooldown := ctrlGui.AddText("x" tx " y" ty+2 " w" labelW, "Break Spacing")
 editBreakCooldown := ctrlGui.AddEdit("x" editX " y" (ty-2) " w55", breakCooldownMin)
 upDownBreakCooldown := ctrlGui.AddUpDown("x" upX " y" (ty-2) " w20 Range0-120")
 upDownBreakCooldown.Value := breakCooldownMin
