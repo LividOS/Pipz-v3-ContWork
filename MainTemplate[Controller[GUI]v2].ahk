@@ -3,8 +3,8 @@
 
 ; =========================================================
 ; Pipz MAINTEMPLATE - Controller (AHK v2)
-; Version: 1.0.22
-; Last change: Added BreakCooldownMin tuning (minimum time between breaks in minutes)
+; Version: 1.0.23
+; Last change: Adding + Fixing Scrollable GUIs
 ; =========================================================
 
 ; =========================
