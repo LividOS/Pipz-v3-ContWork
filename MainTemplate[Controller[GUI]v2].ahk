@@ -280,9 +280,9 @@ innerY := panelY + 25
 innerW := panelW - 20
 innerH := panelH - 35
 
-; Scrollable child GUIs
-featuresGui := Gui("-Caption +Parent" ctrlGui.Hwnd " +VScroll")
-tuningGui   := Gui("-Caption +Parent" ctrlGui.Hwnd " +VScroll")
+; Scrollable child GUIs (use WS_VSCROLL style: 0x00200000)
+featuresGui := Gui("-Caption +Parent" ctrlGui.Hwnd " +0x00200000")
+tuningGui   := Gui("-Caption +Parent" ctrlGui.Hwnd " +0x00200000")
 
 ; Make them visually blend in
 featuresGui.MarginX := 0, featuresGui.MarginY := 0
@@ -1378,10 +1378,10 @@ SetAntiBanSubTab(which) {
     global featuresGui, tuningGui
     global panelX, panelY, panelW, panelH
 
-    innerX := panelX + 10
-    innerY := panelY + 25
-    innerW := panelW - 20
-    innerH := panelH - 35
+    viewX := panelX + 10
+	viewY := panelY + 25
+	viewW := panelW - 20
+	viewH := panelH - 35
 
     showFeatures := (which = "features")
     showTuning := !showFeatures
@@ -1391,10 +1391,10 @@ SetAntiBanSubTab(which) {
 
     if (showFeatures) {
         tuningGui.Hide()
-        featuresGui.Show("x" innerX " y" innerY " w" innerW " h" innerH)
+        featuresGui.Show("NA x" viewX " y" viewY " w" viewW " h" viewH)
     } else {
         featuresGui.Hide()
-        tuningGui.Show("x" innerX " y" innerY " w" innerW " h" innerH)
+        tuningGui.Show("NA x" viewX " y" viewY " w" viewW " h" viewH)
     }
 }
 
