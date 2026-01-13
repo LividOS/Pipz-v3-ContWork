@@ -282,23 +282,18 @@ innerW := panelW - 20
 innerH := panelH - 35
 
 ; Scrollable child GUIs (WS_VSCROLL style: 0x00200000)
-; IMPORTANT: We DO NOT parent to ctrlGui, or the child GUIs will bleed onto other tabs.
-; Instead, we parent to the Anti-Ban TAB PAGE HWND.
-featuresGui := Gui("-Caption +ToolWindow +0x00200000")
-tuningGui   := Gui("-Caption +ToolWindow +0x00200000")
+; IMPORTANT: AHK v2 Tab3 does not expose reliable tab-page HWNDs for parenting.
+; So we parent to ctrlGui and explicitly Hide/Show on main tab changes.
+featuresGui := Gui("-Caption +Parent" ctrlGui.Hwnd " +0x00200000")
+tuningGui   := Gui("-Caption +Parent" ctrlGui.Hwnd " +0x00200000")
 
 ; Make them visually blend in
 featuresGui.MarginX := 0, featuresGui.MarginY := 0
 tuningGui.MarginX   := 0, tuningGui.MarginY   := 0
 
-; Cache the Anti-Ban tab-page HWND and re-parent the child GUIs into that page
-antiPageHwnd := GetTabPageHwnd(tabs.Hwnd, 3)  ; 3 = Anti-Ban tab index
-if (!antiPageHwnd) {
-    MsgBox("Failed to locate Anti-Ban tab page HWND. Child panels cannot be attached.")
-} else {
-    DllCall("SetParent", "ptr", featuresGui.Hwnd, "ptr", antiPageHwnd, "ptr")
-    DllCall("SetParent", "ptr", tuningGui.Hwnd,   "ptr", antiPageHwnd, "ptr")
-}
+; Start hidden until Anti-Ban is selected
+featuresGui.Hide()
+tuningGui.Hide()
 
 ; -------------------------
 ; Load settings
@@ -1387,7 +1382,14 @@ SetAntiBanSubTab(which) {
     global featuresGui, tuningGui
     global panelX, panelY, panelW, panelH
     global btnAntiFeatures, btnAntiTuning
-    global antiPageHwnd
+    global tabs
+
+    ; Only show these panels when the Anti-Ban MAIN tab is active
+    if (tabs.Value != 3) {
+        try featuresGui.Hide()
+        try tuningGui.Hide()
+        return
+    }
 
     viewX := panelX + 10
     viewY := panelY + 25
@@ -1403,16 +1405,14 @@ SetAntiBanSubTab(which) {
     if (showFeatures) {
         try tuningGui.Hide()
         featuresGui.Show("NA x" viewX " y" viewY " w" viewW " h" viewH)
+        BringChildToFront(featuresGui.Hwnd)
         ForceRepaint(featuresGui.Hwnd)
     } else {
         try featuresGui.Hide()
         tuningGui.Show("NA x" viewX " y" viewY " w" viewW " h" viewH)
+        BringChildToFront(tuningGui.Hwnd)
         ForceRepaint(tuningGui.Hwnd)
     }
-
-    ; Ensure the tab page repaints too (prevents "appears after hover" artifacts)
-    if (antiPageHwnd)
-        ForceRepaint(antiPageHwnd)
 
     btnAntiFeatures.Enabled := !showFeatures
     btnAntiTuning.Enabled := !showTuning
@@ -1555,26 +1555,9 @@ OnMainTabChange(*) {
         try featuresGui.Hide()
         try tuningGui.Hide()
     } else {
-        ; Returning to Anti-Ban: show the default sub-tab
+        ; Entering Anti-Ban: show default sub-tab
         SetAntiBanSubTab("features")
     }
-}
-
-GetTabPageHwnd(tabHwnd, pageIndex) {
-    ; Returns a child HWND associated with the tab control.
-    ; pageIndex is 1-based, matching Tab3 indices.
-    static GW_CHILD := 5
-    static GW_HWNDNEXT := 2
-
-    hwnd := DllCall("GetWindow", "ptr", tabHwnd, "uint", GW_CHILD, "ptr")
-    count := 0
-    while (hwnd) {
-        count += 1
-        if (count = pageIndex)
-            return hwnd
-        hwnd := DllCall("GetWindow", "ptr", hwnd, "uint", GW_HWNDNEXT, "ptr")
-    }
-    return 0
 }
 
 ForceRepaint(hwnd) {
