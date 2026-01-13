@@ -242,6 +242,7 @@ UpdateInlineStatus()
 tabs.UseTab(1)  ; restore normal tab assignment
 
 SetTimer(WatchWorkerHealth, 500)
+OnMessage(0x020A, OnAntiBanMouseWheel) ; WM_MOUSEWHEEL
 
 ; =========================
 ; ANTI-BAN TAB (Features / Tuning panels)
@@ -271,8 +272,37 @@ panelY := 125
 panelW := GUI_W - 40
 panelH := 170
 
+; -------------------------
+; Anti-Ban scroll state
+; -------------------------
+antiActiveSubTab := "features"   ; "features" | "tuning"
+
+antiPanelInnerX := panelX + 10
+antiPanelInnerY := panelY + 25
+antiPanelInnerW := panelW - 20
+antiPanelInnerH := panelH - 35
+
+antiFeaturesCtrls := []
+antiTuningCtrls := []
+
+antiFeaturesBase := Map() ; hwnd -> {x,y,w,h}
+antiTuningBase := Map()
+
+antiFeaturesMaxScroll := 0
+antiTuningMaxScroll := 0
+antiScrollPos := 0
+
 gbFeatures := ctrlGui.AddGroupBox("x" panelX " y" panelY " w" panelW " h" panelH, "Features")
 gbTuning   := ctrlGui.AddGroupBox("x" panelX " y" panelY " w" panelW " h" panelH, "Tuning")
+
+; Vertical scrollbar for Anti-Ban panel (shared for both sub-tabs)
+; We use a Slider as a scrollbar: value 0..MaxScroll (pixels).
+antiScrollBar := ctrlGui.AddSlider(
+    "x" (panelX + panelW - 20) " y" (antiPanelInnerY) " w15 h" antiPanelInnerH
+    " Vertical AltSubmit Range0-0 ToolTip"
+)
+antiScrollBar.Visible := false
+antiScrollBar.OnEvent("Change", (*) => AntiBan_ApplyScroll(antiScrollBar.Value))
 
 ; -------------------------
 ; Load settings
@@ -300,16 +330,19 @@ fx := panelX + 20
 fy := panelY + 35
 
 chkOvershoot := ctrlGui.AddCheckBox("x" fx " y" fy " w260 " (overshootEnabled ? "Checked" : ""), "Overshoot")
+antiFeaturesCtrls.Push(chkOvershoot)
 AddCtrlToolTip(ctrlGui, chkOvershoot, FEATURE_META["Overshoot"]["featureTip"])
 chkOvershoot.OnEvent("Click", OnOvershootToggle)
 
 fy += 30
 chkMicroDelay := ctrlGui.AddCheckBox("x" fx " y" fy " w260 " (microDelayEnabled ? "Checked" : ""), "Randomized Micro Delay")
+antiFeaturesCtrls.Push(chkMicroDelay)
 AddCtrlToolTip(ctrlGui, chkMicroDelay, FEATURE_META["MicroDelay"]["featureTip"])
 chkMicroDelay.OnEvent("Click", OnMicroDelayToggle)
 
 fy += 30
 chkBreaks := ctrlGui.AddCheckBox("x" fx " y" fy " w260 " (breaksEnabled ? "Checked" : ""), "Randomized Breaks")
+antiFeaturesCtrls.Push(chkBreaks)
 AddCtrlToolTip(ctrlGui, chkBreaks, FEATURE_META["Breaks"]["featureTip"])
 chkBreaks.OnEvent("Click", OnBreaksToggle)
 
@@ -323,66 +356,76 @@ labelW := panelW - 140
 editX  := panelX + panelW - 95
 upX    := panelX + panelW - 35
 
-; Overshoot tuning
+; --- Overshoot tuning ---
 lblOvershootTune := ctrlGui.AddText("x" tx " y" ty+2 " w" labelW, "Overshoot (%)")
 editOvershoot := ctrlGui.AddEdit("x" editX " y" (ty-2) " w55", overshootValue)
-upDown := ctrlGui.AddUpDown("x" upX " y" (ty-2) " w20 Range0-100")
-upDown.Value := overshootValue
-upDown.OnEvent("Change", (*) => (editOvershoot.Text := upDown.Value, UpdateOvershoot()))
+upDownOvershoot := ctrlGui.AddUpDown("x" upX " y" (ty-2) " w20 Range0-100")
+antiTuningCtrls.Push(lblOvershootTune, editOvershoot, upDownOvershoot)
+
+upDownOvershoot.Value := overshootValue
+upDownOvershoot.OnEvent("Change", (*) => (editOvershoot.Text := upDownOvershoot.Value, UpdateOvershoot()))
 AddCtrlToolTip(ctrlGui, lblOvershootTune, FEATURE_META["Overshoot"]["tuningTip"])
 AddCtrlToolTip(ctrlGui, editOvershoot,    FEATURE_META["Overshoot"]["tuningTip"])
-AddCtrlToolTip(ctrlGui, upDown,           FEATURE_META["Overshoot"]["tuningTip"])
+AddCtrlToolTip(ctrlGui, upDownOvershoot,  FEATURE_META["Overshoot"]["tuningTip"])
 editOvershoot.OnEvent("Change", UpdateOvershoot)
 
 ty += 35
 
-; Randomized Micro Delay Max tuning
+; --- Micro Delay Max tuning ---
 lblMicroDelayMax := ctrlGui.AddText("x" tx " y" ty+2 " w" labelW, "Micro Delay Max (ms)")
 editMicroDelayMax := ctrlGui.AddEdit("x" editX " y" (ty-2) " w55", microDelayMax)
 upDownMicroDelayMax := ctrlGui.AddUpDown("x" upX " y" (ty-2) " w20 Range10-5000")
+antiTuningCtrls.Push(lblMicroDelayMax, editMicroDelayMax, upDownMicroDelayMax)
+
 upDownMicroDelayMax.Value := microDelayMax
 upDownMicroDelayMax.OnEvent("Change", (*) => (editMicroDelayMax.Text := upDownMicroDelayMax.Value, UpdateMicroDelayMax()))
-AddCtrlToolTip(ctrlGui, lblMicroDelayMax,  FEATURE_META["MicroDelay"]["durationTip"])
-AddCtrlToolTip(ctrlGui, editMicroDelayMax,    FEATURE_META["MicroDelay"]["durationTip"])
-AddCtrlToolTip(ctrlGui, upDownMicroDelayMax,  FEATURE_META["MicroDelay"]["durationTip"])
+AddCtrlToolTip(ctrlGui, lblMicroDelayMax,    FEATURE_META["MicroDelay"]["durationTip"])
+AddCtrlToolTip(ctrlGui, editMicroDelayMax,   FEATURE_META["MicroDelay"]["durationTip"])
+AddCtrlToolTip(ctrlGui, upDownMicroDelayMax, FEATURE_META["MicroDelay"]["durationTip"])
 editMicroDelayMax.OnEvent("Change", UpdateMicroDelayMax)
 
 ty += 35
 
-; Micro Delay Chance Tuning
+; --- Micro Delay Chance tuning ---
 lblMicroDelayChance := ctrlGui.AddText("x" tx " y" ty+2 " w" labelW, "Micro Delay Chance (%)")
 editMicroDelayChance := ctrlGui.AddEdit("x" editX " y" (ty-2) " w55", microDelayChance)
 upDownMicroDelayChance := ctrlGui.AddUpDown("x" upX " y" (ty-2) " w20 Range0-100")
+antiTuningCtrls.Push(lblMicroDelayChance, editMicroDelayChance, upDownMicroDelayChance)
 
 upDownMicroDelayChance.Value := microDelayChance
 upDownMicroDelayChance.OnEvent("Change", (*) => (editMicroDelayChance.Text := upDownMicroDelayChance.Value, UpdateMicroDelayChance()))
-AddCtrlToolTip(ctrlGui, editMicroDelayChance, FEATURE_META["MicroDelay"]["chanceTip"])
+AddCtrlToolTip(ctrlGui, lblMicroDelayChance,    FEATURE_META["MicroDelay"]["chanceTip"])
+AddCtrlToolTip(ctrlGui, editMicroDelayChance,   FEATURE_META["MicroDelay"]["chanceTip"])
 AddCtrlToolTip(ctrlGui, upDownMicroDelayChance, FEATURE_META["MicroDelay"]["chanceTip"])
 editMicroDelayChance.OnEvent("Change", UpdateMicroDelayChance)
 
 ty += 35
 
-; Randomized Breaks Chance Tuning
+; --- Break Chance tuning ---
 lblBreakChance := ctrlGui.AddText("x" tx " y" ty+2 " w" labelW, "Break Chance (%)")
 editBreakChance := ctrlGui.AddEdit("x" editX " y" (ty-2) " w55", breakChance)
 upDownBreakChance := ctrlGui.AddUpDown("x" upX " y" (ty-2) " w20 Range0-100")
+antiTuningCtrls.Push(lblBreakChance, editBreakChance, upDownBreakChance)
+
 upDownBreakChance.Value := breakChance
 upDownBreakChance.OnEvent("Change", (*) => (editBreakChance.Text := upDownBreakChance.Value, UpdateBreakChance()))
-AddCtrlToolTip(ctrlGui, lblBreakChance, FEATURE_META["Breaks"]["chanceTip"])
-AddCtrlToolTip(ctrlGui, editBreakChance, FEATURE_META["Breaks"]["chanceTip"])
+AddCtrlToolTip(ctrlGui, lblBreakChance,    FEATURE_META["Breaks"]["chanceTip"])
+AddCtrlToolTip(ctrlGui, editBreakChance,   FEATURE_META["Breaks"]["chanceTip"])
 AddCtrlToolTip(ctrlGui, upDownBreakChance, FEATURE_META["Breaks"]["chanceTip"])
 editBreakChance.OnEvent("Change", UpdateBreakChance)
 
 ty += 35
 
-; Randomized Breaks Cooldown Tuning
-lblBreakCooldown := ctrlGui.AddText("x" tx " y" ty+2 " w" labelW, "Break Spacing (min)")
+; --- Break Spacing (cooldown minutes) tuning ---
+lblBreakCooldown := ctrlGui.AddText("x" tx " y" ty+2 " w" labelW, "Break Spacing")
 editBreakCooldown := ctrlGui.AddEdit("x" editX " y" (ty-2) " w55", breakCooldownMin)
 upDownBreakCooldown := ctrlGui.AddUpDown("x" upX " y" (ty-2) " w20 Range0-120")
+antiTuningCtrls.Push(lblBreakCooldown, editBreakCooldown, upDownBreakCooldown)
+
 upDownBreakCooldown.Value := breakCooldownMin
 upDownBreakCooldown.OnEvent("Change", (*) => (editBreakCooldown.Text := upDownBreakCooldown.Value, UpdateBreakCooldown()))
-AddCtrlToolTip(ctrlGui, lblBreakCooldown, FEATURE_META["Breaks"]["cooldownTip"])
-AddCtrlToolTip(ctrlGui, editBreakCooldown, FEATURE_META["Breaks"]["cooldownTip"])
+AddCtrlToolTip(ctrlGui, lblBreakCooldown,    FEATURE_META["Breaks"]["cooldownTip"])
+AddCtrlToolTip(ctrlGui, editBreakCooldown,   FEATURE_META["Breaks"]["cooldownTip"])
 AddCtrlToolTip(ctrlGui, upDownBreakCooldown, FEATURE_META["Breaks"]["cooldownTip"])
 editBreakCooldown.OnEvent("Change", UpdateBreakCooldown)
 
@@ -390,6 +433,9 @@ editBreakCooldown.OnEvent("Change", UpdateBreakCooldown)
 SetOvershootControlsEnabled(overshootEnabled)
 SetMicroDelayControlsEnabled(microDelayEnabled)
 SetBreakControlsEnabled(breaksEnabled)
+
+; Initialize Anti-Ban scrolling after all controls exist
+AntiBan_InitScroll()
 
 ; Default sub-tab on open
 SetAntiBanSubTab("features")
@@ -1355,12 +1401,16 @@ MicroDelay(minMs := 10, maxMs := "") {
 SetAntiBanSubTab(which) {
     global gbFeatures, gbTuning
     global chkOvershoot, chkMicroDelay, chkBreaks
-    global lblOvershootTune, editOvershoot, upDown
+    global lblOvershootTune, editOvershoot, upDownOvershoot
     global lblMicroDelayMax, editMicroDelayMax, upDownMicroDelayMax
     global lblMicroDelayChance, editMicroDelayChance, upDownMicroDelayChance
-	global lblBreakChance, editBreakChance, upDownBreakChance
-	global lblBreakCooldown, editBreakCooldown, upDownBreakCooldown
+    global lblBreakChance, editBreakChance, upDownBreakChance
+    global lblBreakCooldown, editBreakCooldown, upDownBreakCooldown
     global btnAntiFeatures, btnAntiTuning
+    global antiActiveSubTab, antiScrollPos
+
+    antiActiveSubTab := which
+    antiScrollPos := 0
 
     showFeatures := (which = "features")
     showTuning := !showFeatures
@@ -1372,32 +1422,35 @@ SetAntiBanSubTab(which) {
     ; Feature controls
     chkOvershoot.Visible := showFeatures
     chkMicroDelay.Visible := showFeatures
-	chkBreaks.Visible := showFeatures
+    chkBreaks.Visible := showFeatures
 
     ; Tuning controls
     lblOvershootTune.Visible := showTuning
     editOvershoot.Visible := showTuning
-    upDown.Visible := showTuning
+    upDownOvershoot.Visible := showTuning
 
     lblMicroDelayMax.Visible := showTuning
     editMicroDelayMax.Visible := showTuning
     upDownMicroDelayMax.Visible := showTuning
-	
+
     lblMicroDelayChance.Visible := showTuning
     editMicroDelayChance.Visible := showTuning
     upDownMicroDelayChance.Visible := showTuning
-	
-	lblBreakChance.Visible := showTuning
-	editBreakChance.Visible := showTuning
-	upDownBreakChance.Visible := showTuning
-	
-	lblBreakCooldown.Visible := showTuning
-	editBreakCooldown.Visible := showTuning
-	upDownBreakCooldown.Visible := showTuning
+
+    lblBreakChance.Visible := showTuning
+    editBreakChance.Visible := showTuning
+    upDownBreakChance.Visible := showTuning
+
+    lblBreakCooldown.Visible := showTuning
+    editBreakCooldown.Visible := showTuning
+    upDownBreakCooldown.Visible := showTuning
 
     ; Button enabled hints (optional, feels tab-like)
     btnAntiFeatures.Enabled := !showFeatures
     btnAntiTuning.Enabled := !showTuning
+
+    AntiBan_UpdateScrollUI()
+    AntiBan_ApplyScroll(0)
 }
 
 AddCtrlToolTip(guiObj, ctrlObj, tipText) {
@@ -1514,6 +1567,119 @@ UpdateBreakCooldown(*) {
     upDownBreakCooldown.Value := val
 
     SaveSetting("AntiBan", "BreakCooldownMin", val)
+}
+
+AntiBan_InitScroll() {
+    global antiFeaturesCtrls, antiTuningCtrls
+    global antiFeaturesBase, antiTuningBase
+    global antiFeaturesMaxScroll, antiTuningMaxScroll
+    global antiPanelInnerH
+
+    antiFeaturesBase := Map()
+    antiTuningBase := Map()
+
+    antiFeaturesMaxScroll := AntiBan_CacheBaseAndGetMax(antiFeaturesCtrls, antiFeaturesBase, antiPanelInnerH)
+    antiTuningMaxScroll   := AntiBan_CacheBaseAndGetMax(antiTuningCtrls,   antiTuningBase,   antiPanelInnerH)
+}
+
+AntiBan_CacheBaseAndGetMax(ctrlArr, baseMap, viewportH) {
+    bottom := 0
+    for _, c in ctrlArr {
+        try {
+            c.GetPos(&x, &y, &w, &h)
+            baseMap[c.Hwnd] := [x, y, w, h]
+            if (y + h > bottom)
+                bottom := y + h
+        }
+    }
+    ; max scroll is how much content extends below the viewport
+    maxScroll := bottom - viewportH
+    return (maxScroll > 0) ? maxScroll : 0
+}
+
+AntiBan_ApplyScroll(newPos) {
+    global antiActiveSubTab, antiScrollPos
+    global antiFeaturesCtrls, antiTuningCtrls
+    global antiFeaturesBase, antiTuningBase
+    global antiFeaturesMaxScroll, antiTuningMaxScroll
+
+    maxScroll := (antiActiveSubTab = "features") ? antiFeaturesMaxScroll : antiTuningMaxScroll
+    if (newPos < 0)
+        newPos := 0
+    if (newPos > maxScroll)
+        newPos := maxScroll
+
+    antiScrollPos := newPos
+
+    if (antiActiveSubTab = "features")
+        AntiBan_MoveControls(antiFeaturesCtrls, antiFeaturesBase, -antiScrollPos)
+    else
+        AntiBan_MoveControls(antiTuningCtrls, antiTuningBase, -antiScrollPos)
+}
+
+AntiBan_MoveControls(ctrlArr, baseMap, yOffset) {
+    for _, c in ctrlArr {
+        if !baseMap.Has(c.Hwnd)
+            continue
+        base := baseMap[c.Hwnd]
+        x := base[1], y := base[2], w := base[3], h := base[4]
+        try c.Move(x, y + yOffset, w, h)
+    }
+}
+
+AntiBan_UpdateScrollUI() {
+    global antiScrollBar, antiActiveSubTab, antiScrollPos
+    global antiFeaturesMaxScroll, antiTuningMaxScroll
+
+    maxScroll := (antiActiveSubTab = "features") ? antiFeaturesMaxScroll : antiTuningMaxScroll
+
+    if (maxScroll <= 0) {
+        antiScrollBar.Visible := false
+        antiScrollPos := 0
+        AntiBan_ApplyScroll(0)
+        return
+    }
+
+    antiScrollBar.Visible := true
+    antiScrollBar.Opt("Range0-" maxScroll)
+    if (antiScrollPos > maxScroll)
+        antiScrollPos := maxScroll
+    antiScrollBar.Value := antiScrollPos
+}
+
+OnAntiBanMouseWheel(wParam, lParam, msg, hwnd) {
+    global tabs
+    global antiScrollBar, antiPanelInnerX, antiPanelInnerY, antiPanelInnerW, antiPanelInnerH
+    global antiFeaturesMaxScroll, antiTuningMaxScroll, antiActiveSubTab, antiScrollPos
+
+    if (tabs.Value != 3)
+        return
+
+    MouseGetPos(&mx, &my)
+    WinGetPos(&gx, &gy, , , "ahk_id " hwnd)
+
+    x := mx - gx
+    y := my - gy
+
+    ; Only scroll when mouse is inside the Anti-Ban panel area
+    if (x < antiPanelInnerX || x > antiPanelInnerX + antiPanelInnerW)
+        return
+    if (y < antiPanelInnerY || y > antiPanelInnerY + antiPanelInnerH)
+        return
+
+    maxScroll := (antiActiveSubTab = "features") ? antiFeaturesMaxScroll : antiTuningMaxScroll
+    if (maxScroll <= 0)
+        return
+
+    delta := (wParam >> 16) & 0xFFFF
+    if (delta & 0x8000)
+        delta := -((~delta & 0xFFFF) + 1)
+
+    step := 30
+    newPos := antiScrollPos + ((delta < 0) ? step : -step)
+
+    antiScrollBar.Value := newPos
+    AntiBan_ApplyScroll(newPos)
 }
 
 ; =========================
