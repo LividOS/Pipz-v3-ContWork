@@ -3,8 +3,8 @@
 
 ; =========================================================
 ; Pipz MAINTEMPLATE - Controller (AHK v2)
-; Version: 1.0.23
-; Last change: Adding + Fixing Scrollable GUIs
+; Version: 1.0.24
+; Last change: Adding Helper Function + Continuing fix for Scrollable GUIs
 ; =========================================================
 
 ; =========================
