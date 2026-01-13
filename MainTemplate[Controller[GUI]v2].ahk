@@ -3,8 +3,8 @@
 
 ; =========================================================
 ; Pipz MAINTEMPLATE - Controller (AHK v2)
-; Version: 1.0.24
-; Last change: Adding Helper Function + Continuing fix for Scrollable GUIs
+; Version: 1.0.22
+; Last change: Added BreakCooldownMin tuning (minimum time between breaks in minutes)
 ; =========================================================
 
 ; =========================
@@ -189,7 +189,6 @@ GUI_W := 420
 GUI_H := 340
 
 tabs := ctrlGui.AddTab3("x10 y10 w" GUI_W " h" GUI_H, ["General", "Settings", "Anti-Ban", "About"])
-tabs.OnEvent("Change", OnMainTabChange)
 
 tabs.UseTab(1)
 
@@ -275,32 +274,6 @@ panelH := 170
 gbFeatures := ctrlGui.AddGroupBox("x" panelX " y" panelY " w" panelW " h" panelH, "Features")
 gbTuning   := ctrlGui.AddGroupBox("x" panelX " y" panelY " w" panelW " h" panelH, "Tuning")
 
-; Inner content area inside groupbox (padding for border + title)
-innerX := panelX + 10
-innerY := panelY + 25
-innerW := panelW - 20
-innerH := panelH - 35
-
-; Scrollable child GUIs (WS_VSCROLL style: 0x00200000)
-; IMPORTANT: Parent to the Tab control HWND for correct clipping/repaint.
-featuresGui := Gui("-Caption -Border +Parent" tabs.Hwnd " +0x00200000")
-tuningGui   := Gui("-Caption -Border +Parent" tabs.Hwnd " +0x00200000")
-
-; Match controller styling
-featuresGui.SetFont("s10", "Segoe UI")
-tuningGui.SetFont("s10", "Segoe UI")
-
-; Match background
-featuresGui.BackColor := "FFFFFF"
-tuningGui.BackColor   := "FFFFFF"
-
-featuresGui.MarginX := 0, featuresGui.MarginY := 0
-tuningGui.MarginX   := 0, tuningGui.MarginY   := 0
-
-; Start hidden until Anti-Ban is selected
-featuresGui.Hide()
-tuningGui.Hide()
-
 ; -------------------------
 ; Load settings
 ; -------------------------
@@ -323,100 +296,94 @@ breakCooldownMin := Clamp(breakCooldownMin, 0, 120) ; 0 = no cooldown, cap at 2h
 ; =========================
 ctrlGui.SetFont("s10")
 
-fx := 10
-fy := 10
+fx := panelX + 20
+fy := panelY + 35
 
-chkOvershoot := featuresGui.AddCheckBox("x" fx " y" fy " w260 " (overshootEnabled ? "Checked" : ""), "Overshoot")
-AddCtrlToolTip(featuresGui, chkOvershoot, FEATURE_META["Overshoot"]["featureTip"])
+chkOvershoot := ctrlGui.AddCheckBox("x" fx " y" fy " w260 " (overshootEnabled ? "Checked" : ""), "Overshoot")
+AddCtrlToolTip(ctrlGui, chkOvershoot, FEATURE_META["Overshoot"]["featureTip"])
 chkOvershoot.OnEvent("Click", OnOvershootToggle)
 
 fy += 30
-chkMicroDelay := featuresGui.AddCheckBox("x" fx " y" fy " w260 " (microDelayEnabled ? "Checked" : ""), "Randomized Micro Delay")
-AddCtrlToolTip(featuresGui, chkMicroDelay, FEATURE_META["MicroDelay"]["featureTip"])
+chkMicroDelay := ctrlGui.AddCheckBox("x" fx " y" fy " w260 " (microDelayEnabled ? "Checked" : ""), "Randomized Micro Delay")
+AddCtrlToolTip(ctrlGui, chkMicroDelay, FEATURE_META["MicroDelay"]["featureTip"])
 chkMicroDelay.OnEvent("Click", OnMicroDelayToggle)
 
 fy += 30
-chkBreaks := featuresGui.AddCheckBox("x" fx " y" fy " w260 " (breaksEnabled ? "Checked" : ""), "Randomized Breaks")
-AddCtrlToolTip(featuresGui, chkBreaks, FEATURE_META["Breaks"]["featureTip"])
+chkBreaks := ctrlGui.AddCheckBox("x" fx " y" fy " w260 " (breaksEnabled ? "Checked" : ""), "Randomized Breaks")
+AddCtrlToolTip(ctrlGui, chkBreaks, FEATURE_META["Breaks"]["featureTip"])
 chkBreaks.OnEvent("Click", OnBreaksToggle)
 
 ; =========================
-; TUNING PANEL (spinboxes)  [SCROLLABLE CHILD GUI]
+; TUNING PANEL (spinboxes)
 ; =========================
+tx := panelX + 20
+ty := panelY + 35
 
-; Inner width used for layout inside tuningGui
-innerW := panelW - 20
+labelW := panelW - 140
+editX  := panelX + panelW - 95
+upX    := panelX + panelW - 35
 
-tx := 10
-ty := 10
-
-labelW := innerW - 140
-editX  := innerW - 95
-upX    := innerW - 35
-
-tuningGui.SetFont("s10 Bold", "Segoe UI")
-
-; --- Overshoot tuning ---
-lblOvershootTune := tuningGui.AddText("x" tx " y" ty+2 " w" labelW, "Overshoot (%)")
-editOvershoot := tuningGui.AddEdit("x" editX " y" (ty-2) " w55", overshootValue)
-upDown := tuningGui.AddUpDown("x" upX " y" (ty-2) " w20 Range0-100")
+; Overshoot tuning
+lblOvershootTune := ctrlGui.AddText("x" tx " y" ty+2 " w" labelW, "Overshoot (%)")
+editOvershoot := ctrlGui.AddEdit("x" editX " y" (ty-2) " w55", overshootValue)
+upDown := ctrlGui.AddUpDown("x" upX " y" (ty-2) " w20 Range0-100")
 upDown.Value := overshootValue
 upDown.OnEvent("Change", (*) => (editOvershoot.Text := upDown.Value, UpdateOvershoot()))
-AddCtrlToolTip(tuningGui, lblOvershootTune, FEATURE_META["Overshoot"]["tuningTip"])
-AddCtrlToolTip(tuningGui, editOvershoot,    FEATURE_META["Overshoot"]["tuningTip"])
-AddCtrlToolTip(tuningGui, upDown,           FEATURE_META["Overshoot"]["tuningTip"])
+AddCtrlToolTip(ctrlGui, lblOvershootTune, FEATURE_META["Overshoot"]["tuningTip"])
+AddCtrlToolTip(ctrlGui, editOvershoot,    FEATURE_META["Overshoot"]["tuningTip"])
+AddCtrlToolTip(ctrlGui, upDown,           FEATURE_META["Overshoot"]["tuningTip"])
 editOvershoot.OnEvent("Change", UpdateOvershoot)
 
 ty += 35
 
-; --- Micro Delay Max tuning ---
-lblMicroDelayMax := tuningGui.AddText("x" tx " y" ty+2 " w" labelW, "Micro Delay Max (ms)")
-editMicroDelayMax := tuningGui.AddEdit("x" editX " y" (ty-2) " w55", microDelayMax)
-upDownMicroDelayMax := tuningGui.AddUpDown("x" upX " y" (ty-2) " w20 Range10-5000")
+; Randomized Micro Delay Max tuning
+lblMicroDelayMax := ctrlGui.AddText("x" tx " y" ty+2 " w" labelW, "Micro Delay Max (ms)")
+editMicroDelayMax := ctrlGui.AddEdit("x" editX " y" (ty-2) " w55", microDelayMax)
+upDownMicroDelayMax := ctrlGui.AddUpDown("x" upX " y" (ty-2) " w20 Range10-5000")
 upDownMicroDelayMax.Value := microDelayMax
 upDownMicroDelayMax.OnEvent("Change", (*) => (editMicroDelayMax.Text := upDownMicroDelayMax.Value, UpdateMicroDelayMax()))
-AddCtrlToolTip(tuningGui, lblMicroDelayMax,      FEATURE_META["MicroDelay"]["durationTip"])
-AddCtrlToolTip(tuningGui, editMicroDelayMax,     FEATURE_META["MicroDelay"]["durationTip"])
-AddCtrlToolTip(tuningGui, upDownMicroDelayMax,   FEATURE_META["MicroDelay"]["durationTip"])
+AddCtrlToolTip(ctrlGui, lblMicroDelayMax,  FEATURE_META["MicroDelay"]["durationTip"])
+AddCtrlToolTip(ctrlGui, editMicroDelayMax,    FEATURE_META["MicroDelay"]["durationTip"])
+AddCtrlToolTip(ctrlGui, upDownMicroDelayMax,  FEATURE_META["MicroDelay"]["durationTip"])
 editMicroDelayMax.OnEvent("Change", UpdateMicroDelayMax)
 
 ty += 35
 
-; --- Micro Delay Chance tuning ---
-lblMicroDelayChance := tuningGui.AddText("x" tx " y" ty+2 " w" labelW, "Micro Delay Chance (%)")
-editMicroDelayChance := tuningGui.AddEdit("x" editX " y" (ty-2) " w55", microDelayChance)
-upDownMicroDelayChance := tuningGui.AddUpDown("x" upX " y" (ty-2) " w20 Range0-100")
+; Micro Delay Chance Tuning
+lblMicroDelayChance := ctrlGui.AddText("x" tx " y" ty+2 " w" labelW, "Micro Delay Chance (%)")
+editMicroDelayChance := ctrlGui.AddEdit("x" editX " y" (ty-2) " w55", microDelayChance)
+upDownMicroDelayChance := ctrlGui.AddUpDown("x" upX " y" (ty-2) " w20 Range0-100")
+
 upDownMicroDelayChance.Value := microDelayChance
 upDownMicroDelayChance.OnEvent("Change", (*) => (editMicroDelayChance.Text := upDownMicroDelayChance.Value, UpdateMicroDelayChance()))
-AddCtrlToolTip(tuningGui, lblMicroDelayChance,     FEATURE_META["MicroDelay"]["chanceTip"])
-AddCtrlToolTip(tuningGui, editMicroDelayChance,    FEATURE_META["MicroDelay"]["chanceTip"])
-AddCtrlToolTip(tuningGui, upDownMicroDelayChance,  FEATURE_META["MicroDelay"]["chanceTip"])
+AddCtrlToolTip(ctrlGui, editMicroDelayChance, FEATURE_META["MicroDelay"]["chanceTip"])
+AddCtrlToolTip(ctrlGui, upDownMicroDelayChance, FEATURE_META["MicroDelay"]["chanceTip"])
 editMicroDelayChance.OnEvent("Change", UpdateMicroDelayChance)
 
 ty += 35
 
-; --- Break Chance tuning ---
-lblBreakChance := tuningGui.AddText("x" tx " y" ty+2 " w" labelW, "Break Chance (%)")
-editBreakChance := tuningGui.AddEdit("x" editX " y" (ty-2) " w55", breakChance)
-upDownBreakChance := tuningGui.AddUpDown("x" upX " y" (ty-2) " w20 Range0-100")
+; Randomized Breaks Chance Tuning
+lblBreakChance := ctrlGui.AddText("x" tx " y" ty+2 " w" labelW, "Break Chance (%)")
+editBreakChance := ctrlGui.AddEdit("x" editX " y" (ty-2) " w55", breakChance)
+upDownBreakChance := ctrlGui.AddUpDown("x" upX " y" (ty-2) " w20 Range0-100")
 upDownBreakChance.Value := breakChance
 upDownBreakChance.OnEvent("Change", (*) => (editBreakChance.Text := upDownBreakChance.Value, UpdateBreakChance()))
-AddCtrlToolTip(tuningGui, lblBreakChance,     FEATURE_META["Breaks"]["chanceTip"])
-AddCtrlToolTip(tuningGui, editBreakChance,    FEATURE_META["Breaks"]["chanceTip"])
-AddCtrlToolTip(tuningGui, upDownBreakChance,  FEATURE_META["Breaks"]["chanceTip"])
+AddCtrlToolTip(ctrlGui, lblBreakChance, FEATURE_META["Breaks"]["chanceTip"])
+AddCtrlToolTip(ctrlGui, editBreakChance, FEATURE_META["Breaks"]["chanceTip"])
+AddCtrlToolTip(ctrlGui, upDownBreakChance, FEATURE_META["Breaks"]["chanceTip"])
 editBreakChance.OnEvent("Change", UpdateBreakChance)
 
 ty += 35
 
-; --- Break Spacing (cooldown minutes) tuning ---
-lblBreakCooldown := tuningGui.AddText("x" tx " y" ty+2 " w" labelW, "Break Spacing")
-editBreakCooldown := tuningGui.AddEdit("x" editX " y" (ty-2) " w55", breakCooldownMin)
-upDownBreakCooldown := tuningGui.AddUpDown("x" upX " y" (ty-2) " w20 Range0-120")
+; Randomized Breaks Cooldown Tuning
+lblBreakCooldown := ctrlGui.AddText("x" tx " y" ty+2 " w" labelW, "Break Spacing (min)")
+editBreakCooldown := ctrlGui.AddEdit("x" editX " y" (ty-2) " w55", breakCooldownMin)
+upDownBreakCooldown := ctrlGui.AddUpDown("x" upX " y" (ty-2) " w20 Range0-120")
 upDownBreakCooldown.Value := breakCooldownMin
 upDownBreakCooldown.OnEvent("Change", (*) => (editBreakCooldown.Text := upDownBreakCooldown.Value, UpdateBreakCooldown()))
-AddCtrlToolTip(tuningGui, lblBreakCooldown,     FEATURE_META["Breaks"]["cooldownTip"])
-AddCtrlToolTip(tuningGui, editBreakCooldown,    FEATURE_META["Breaks"]["cooldownTip"])
-AddCtrlToolTip(tuningGui, upDownBreakCooldown,  FEATURE_META["Breaks"]["cooldownTip"])
+AddCtrlToolTip(ctrlGui, lblBreakCooldown, FEATURE_META["Breaks"]["cooldownTip"])
+AddCtrlToolTip(ctrlGui, editBreakCooldown, FEATURE_META["Breaks"]["cooldownTip"])
+AddCtrlToolTip(ctrlGui, upDownBreakCooldown, FEATURE_META["Breaks"]["cooldownTip"])
 editBreakCooldown.OnEvent("Change", UpdateBreakCooldown)
 
 ; Apply enabled/disabled states once
@@ -1387,52 +1354,48 @@ MicroDelay(minMs := 10, maxMs := "") {
 
 SetAntiBanSubTab(which) {
     global gbFeatures, gbTuning
-    global featuresGui, tuningGui
-    global panelX, panelY, panelW, panelH
+    global chkOvershoot, chkMicroDelay, chkBreaks
+    global lblOvershootTune, editOvershoot, upDown
+    global lblMicroDelayMax, editMicroDelayMax, upDownMicroDelayMax
+    global lblMicroDelayChance, editMicroDelayChance, upDownMicroDelayChance
+	global lblBreakChance, editBreakChance, upDownBreakChance
+	global lblBreakCooldown, editBreakCooldown, upDownBreakCooldown
     global btnAntiFeatures, btnAntiTuning
-    global tabs
-
-    ; Only show these panels when the Anti-Ban MAIN tab is active
-    if (tabs.Value != 3) {
-        try featuresGui.Hide()
-        try tuningGui.Hide()
-        return
-    }
-
-    ; Get tab control position so we can convert absolute ctrlGui coords -> tab-relative coords
-    tabs.GetPos(&tabX, &tabY, &tabW, &tabH)
-
-    ; These are ctrlGui coordinates for the content area
-    viewX := panelX + 10
-    viewY := panelY + 25
-    viewW := panelW - 20
-    viewH := panelH - 35
-
-    ; Convert to tab-relative coordinates (child GUIs are parented to tabs.Hwnd)
-    relX := viewX - tabX
-    relY := viewY - tabY
 
     showFeatures := (which = "features")
     showTuning := !showFeatures
 
+    ; Panels
     gbFeatures.Visible := showFeatures
     gbTuning.Visible := showTuning
 
-    if (showFeatures) {
-        try tuningGui.Hide()
-        featuresGui.Show("NA x" relX " y" relY " w" viewW " h" viewH)
-        BringChildToFront(featuresGui.Hwnd)
-        ForceRepaint(featuresGui.Hwnd)
-    } else {
-        try featuresGui.Hide()
-        tuningGui.Show("NA x" relX " y" relY " w" viewW " h" viewH)
-        BringChildToFront(tuningGui.Hwnd)
-        ForceRepaint(tuningGui.Hwnd)
-    }
+    ; Feature controls
+    chkOvershoot.Visible := showFeatures
+    chkMicroDelay.Visible := showFeatures
+	chkBreaks.Visible := showFeatures
 
-    ; Force tab control repaint to avoid "appears after hover"
-    ForceRepaint(tabs.Hwnd)
+    ; Tuning controls
+    lblOvershootTune.Visible := showTuning
+    editOvershoot.Visible := showTuning
+    upDown.Visible := showTuning
 
+    lblMicroDelayMax.Visible := showTuning
+    editMicroDelayMax.Visible := showTuning
+    upDownMicroDelayMax.Visible := showTuning
+	
+    lblMicroDelayChance.Visible := showTuning
+    editMicroDelayChance.Visible := showTuning
+    upDownMicroDelayChance.Visible := showTuning
+	
+	lblBreakChance.Visible := showTuning
+	editBreakChance.Visible := showTuning
+	upDownBreakChance.Visible := showTuning
+	
+	lblBreakCooldown.Visible := showTuning
+	editBreakCooldown.Visible := showTuning
+	upDownBreakCooldown.Visible := showTuning
+
+    ; Button enabled hints (optional, feels tab-like)
     btnAntiFeatures.Enabled := !showFeatures
     btnAntiTuning.Enabled := !showTuning
 }
@@ -1551,47 +1514,6 @@ UpdateBreakCooldown(*) {
     upDownBreakCooldown.Value := val
 
     SaveSetting("AntiBan", "BreakCooldownMin", val)
-}
-
-BringChildToFront(hwnd) {
-    static SWP_NOMOVE := 0x0002
-    static SWP_NOSIZE := 0x0001
-    static SWP_NOACTIVATE := 0x0010
-    static HWND_TOP := 0
-
-    DllCall("SetWindowPos"
-        , "ptr", hwnd
-        , "ptr", HWND_TOP
-        , "int", 0, "int", 0, "int", 0, "int", 0
-        , "uint", SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE)
-}
-
-OnMainTabChange(*) {
-    global tabs, featuresGui, tuningGui
-
-    if (tabs.Value != 3) {
-        try featuresGui.Hide()
-        try tuningGui.Hide()
-        return
-    }
-
-    ; Defer one tick so the tab finishes repainting before we show child GUIs
-    SetTimer(() => SetAntiBanSubTab("features"), -1)
-}
-
-ForceRepaint(hwnd) {
-    static RDW_INVALIDATE := 0x0001
-    static RDW_UPDATENOW  := 0x0100
-    static RDW_ALLCHILDREN := 0x0080
-
-    if (!hwnd)
-        return
-
-    DllCall("RedrawWindow"
-        , "ptr", hwnd
-        , "ptr", 0
-        , "ptr", 0
-        , "uint", RDW_INVALIDATE | RDW_UPDATENOW | RDW_ALLCHILDREN)
 }
 
 ; =========================
