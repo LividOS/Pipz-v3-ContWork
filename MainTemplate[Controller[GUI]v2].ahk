@@ -189,6 +189,7 @@ GUI_W := 420
 GUI_H := 340
 
 tabs := ctrlGui.AddTab3("x10 y10 w" GUI_W " h" GUI_H, ["General", "Settings", "Anti-Ban", "About"])
+tabs.OnEvent("Change", OnMainTabChange)
 
 tabs.UseTab(1)
 
@@ -280,16 +281,24 @@ innerY := panelY + 25
 innerW := panelW - 20
 innerH := panelH - 35
 
-; Scrollable child GUIs (use WS_VSCROLL style: 0x00200000)
-featuresGui := Gui("-Caption +Parent" ctrlGui.Hwnd " +0x00200000")
-tuningGui   := Gui("-Caption +Parent" ctrlGui.Hwnd " +0x00200000")
+; Scrollable child GUIs (WS_VSCROLL style: 0x00200000)
+; IMPORTANT: We DO NOT parent to ctrlGui, or the child GUIs will bleed onto other tabs.
+; Instead, we parent to the Anti-Ban TAB PAGE HWND.
+featuresGui := Gui("-Caption +ToolWindow +0x00200000")
+tuningGui   := Gui("-Caption +ToolWindow +0x00200000")
 
 ; Make them visually blend in
 featuresGui.MarginX := 0, featuresGui.MarginY := 0
 tuningGui.MarginX   := 0, tuningGui.MarginY   := 0
-; Optional if you want exact match (usually unnecessary):
-; featuresGui.BackColor := ctrlGui.BackColor
-; tuningGui.BackColor := ctrlGui.BackColor
+
+; Cache the Anti-Ban tab-page HWND and re-parent the child GUIs into that page
+antiPageHwnd := GetTabPageHwnd(tabs.Hwnd, 3)  ; 3 = Anti-Ban tab index
+if (!antiPageHwnd) {
+    MsgBox("Failed to locate Anti-Ban tab page HWND. Child panels cannot be attached.")
+} else {
+    DllCall("SetParent", "ptr", featuresGui.Hwnd, "ptr", antiPageHwnd, "ptr")
+    DllCall("SetParent", "ptr", tuningGui.Hwnd,   "ptr", antiPageHwnd, "ptr")
+}
 
 ; -------------------------
 ; Load settings
@@ -1377,11 +1386,13 @@ SetAntiBanSubTab(which) {
     global gbFeatures, gbTuning
     global featuresGui, tuningGui
     global panelX, panelY, panelW, panelH
+    global btnAntiFeatures, btnAntiTuning
+    global antiPageHwnd
 
     viewX := panelX + 10
-	viewY := panelY + 25
-	viewW := panelW - 20
-	viewH := panelH - 35
+    viewY := panelY + 25
+    viewW := panelW - 20
+    viewH := panelH - 35
 
     showFeatures := (which = "features")
     showTuning := !showFeatures
@@ -1390,12 +1401,21 @@ SetAntiBanSubTab(which) {
     gbTuning.Visible := showTuning
 
     if (showFeatures) {
-        tuningGui.Hide()
+        try tuningGui.Hide()
         featuresGui.Show("NA x" viewX " y" viewY " w" viewW " h" viewH)
+        ForceRepaint(featuresGui.Hwnd)
     } else {
-        featuresGui.Hide()
+        try featuresGui.Hide()
         tuningGui.Show("NA x" viewX " y" viewY " w" viewW " h" viewH)
+        ForceRepaint(tuningGui.Hwnd)
     }
+
+    ; Ensure the tab page repaints too (prevents "appears after hover" artifacts)
+    if (antiPageHwnd)
+        ForceRepaint(antiPageHwnd)
+
+    btnAntiFeatures.Enabled := !showFeatures
+    btnAntiTuning.Enabled := !showTuning
 }
 
 AddCtrlToolTip(guiObj, ctrlObj, tipText) {
@@ -1512,6 +1532,64 @@ UpdateBreakCooldown(*) {
     upDownBreakCooldown.Value := val
 
     SaveSetting("AntiBan", "BreakCooldownMin", val)
+}
+
+BringChildToFront(hwnd) {
+    static SWP_NOMOVE := 0x0002
+    static SWP_NOSIZE := 0x0001
+    static SWP_NOACTIVATE := 0x0010
+    static HWND_TOP := 0
+
+    DllCall("SetWindowPos"
+        , "ptr", hwnd
+        , "ptr", HWND_TOP
+        , "int", 0, "int", 0, "int", 0, "int", 0
+        , "uint", SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE)
+}
+
+OnMainTabChange(*) {
+    global tabs, featuresGui, tuningGui
+
+    ; Anti-Ban tab index is 3
+    if (tabs.Value != 3) {
+        try featuresGui.Hide()
+        try tuningGui.Hide()
+    } else {
+        ; Returning to Anti-Ban: show the default sub-tab
+        SetAntiBanSubTab("features")
+    }
+}
+
+GetTabPageHwnd(tabHwnd, pageIndex) {
+    ; Returns a child HWND associated with the tab control.
+    ; pageIndex is 1-based, matching Tab3 indices.
+    static GW_CHILD := 5
+    static GW_HWNDNEXT := 2
+
+    hwnd := DllCall("GetWindow", "ptr", tabHwnd, "uint", GW_CHILD, "ptr")
+    count := 0
+    while (hwnd) {
+        count += 1
+        if (count = pageIndex)
+            return hwnd
+        hwnd := DllCall("GetWindow", "ptr", hwnd, "uint", GW_HWNDNEXT, "ptr")
+    }
+    return 0
+}
+
+ForceRepaint(hwnd) {
+    static RDW_INVALIDATE := 0x0001
+    static RDW_UPDATENOW  := 0x0100
+    static RDW_ALLCHILDREN := 0x0080
+
+    if (!hwnd)
+        return
+
+    DllCall("RedrawWindow"
+        , "ptr", hwnd
+        , "ptr", 0
+        , "ptr", 0
+        , "uint", RDW_INVALIDATE | RDW_UPDATENOW | RDW_ALLCHILDREN)
 }
 
 ; =========================
