@@ -1,5 +1,5 @@
-﻿#Requires AutoHotkey v2.0
-#Warn
+﻿#Requires AutoHotkey >=2.0 <3.0
+#Warn All
 
 ; =========================================================
 ; Pipz MAINTEMPLATE - Worker (AHK v2)
@@ -314,7 +314,7 @@ License_Deobfuscate_FromBase64(b64Text, secret) {
 ;  More Flight's mouse moves: https://paste.villavu.com/show/3279/       	 ;
 ;  ModIfied script with simpler method MoveMouse() by: dexon in C#           	 ;
 ;  Conversion from C# into AHK by: HowDoIStayInDreams, with the help of Arekusei ;
-;  Refactor & Rewrite by Pipz ;
+;  Refactor & Rewrite v1.6+ by Pipz ;
 ;--------------------------------------------------------------------------------;
 ;--------------------------------------------------------------------------------;
 ;  Changelog:									 ;
